@@ -44,7 +44,8 @@ export default function SchedulePage() {
   const handleSave = async () => {
     if (!form.class_id || !form.subject || !form.weekday) return;
     setSaving(true);
-    await supabase.from("schedules").insert({
+
+    const { data: inserted } = await supabase.from("schedules").insert({
       class_id: form.class_id,
       teacher_id: form.teacher_id || null,
       subject: form.subject,
@@ -53,7 +54,21 @@ export default function SchedulePage() {
       time_end: form.time_end,
       room: form.room || null,
       week_type: form.week_type,
-    });
+    }).select("id").single();
+
+    // 通知对应教师
+    if (form.teacher_id) {
+      const className = classes.find((c) => c.id === form.class_id)?.name ?? "";
+      const weekLabel = weekDays[parseInt(form.weekday)] ?? `周${form.weekday}`;
+      await supabase.from("notifications").insert({
+        user_id: form.teacher_id,
+        type: "SCHEDULE",
+        title: "新排班通知",
+        content: `管理员为您安排了新课程：${form.subject}（${className}），${weekLabel} ${form.time_start}–${form.time_end}${form.room ? `，教室：${form.room}` : ""}。`,
+        related_id: inserted?.id ?? null,
+      });
+    }
+
     setSaving(false);
     setModalOpen(false);
     load();

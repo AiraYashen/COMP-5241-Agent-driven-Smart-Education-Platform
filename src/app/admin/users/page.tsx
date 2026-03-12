@@ -34,6 +34,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", role: "STUDENT" as Role, school_id: "" });
   const [saving, setSaving] = useState(false);
 
@@ -57,11 +58,33 @@ export default function UsersPage() {
   const handleSave = async () => {
     if (!form.name.trim() || !form.phone.trim()) return;
     setSaving(true);
-    await supabase.from("users").insert({ name: form.name, phone: form.phone, role: form.role, school_id: form.school_id || null });
+    if (editingUser) {
+      await supabase.from("users").update({
+        name: form.name,
+        phone: form.phone,
+        role: form.role,
+        school_id: form.school_id || null,
+      }).eq("id", editingUser.id);
+    } else {
+      await supabase.from("users").insert({ name: form.name, phone: form.phone, role: form.role, school_id: form.school_id || null });
+    }
     setSaving(false);
     setModalOpen(false);
+    setEditingUser(null);
     setForm({ name: "", phone: "", role: "STUDENT", school_id: "" });
     load();
+  };
+
+  const handleEdit = (u: User) => {
+    setEditingUser(u);
+    setForm({ name: u.name, phone: u.phone ?? "", role: u.role, school_id: u.school_id ?? "" });
+    setModalOpen(true);
+  };
+
+  const handleOpenAdd = () => {
+    setEditingUser(null);
+    setForm({ name: "", phone: "", role: "STUDENT", school_id: "" });
+    setModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -90,7 +113,7 @@ export default function UsersPage() {
             className="px-3 py-2 rounded-lg text-sm border focus:outline-none w-48"
             style={{ background: "var(--input-bg)", borderColor: "var(--input-border)", color: "var(--foreground)" }}
           />
-          <Button onClick={() => setModalOpen(true)}>+ 添加用户</Button>
+          <Button onClick={handleOpenAdd}>+ 添加用户</Button>
         </div>
       </div>
 
@@ -128,7 +151,10 @@ export default function UsersPage() {
                   <td className="px-5 py-3.5" style={{ color: "var(--muted)" }}>{u.schools?.name || "—"}</td>
                   <td className="px-5 py-3.5" style={{ color: "var(--muted)" }}>{new Date(u.created_at).toLocaleDateString("zh-CN")}</td>
                   <td className="px-5 py-3.5">
-                    <Button size="sm" variant="danger" onClick={() => handleDelete(u.id)}>删除</Button>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="secondary" onClick={() => handleEdit(u)}>编辑</Button>
+                      <Button size="sm" variant="danger" onClick={() => handleDelete(u.id)}>删除</Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -139,12 +165,12 @@ export default function UsersPage() {
 
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="添加用户"
+        onClose={() => { setModalOpen(false); setEditingUser(null); }}
+        title={editingUser ? "编辑用户" : "添加用户"}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>取消</Button>
-            <Button loading={saving} onClick={handleSave}>保存</Button>
+            <Button variant="secondary" onClick={() => { setModalOpen(false); setEditingUser(null); }}>取消</Button>
+            <Button loading={saving} onClick={handleSave}>{editingUser ? "保存修改" : "保存"}</Button>
           </>
         }
       >

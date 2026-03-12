@@ -8,6 +8,7 @@ const TYPE_LABELS: Record<string, string> = {
   ANNOUNCEMENT_REMINDER: "公告提醒",
   GRADE_PUBLISHED: "成绩发布",
   ASSIGNMENT: "作业通知",
+  SCHEDULE: "排班通知",
 };
 
 export default function TeacherNotificationsPage() {
