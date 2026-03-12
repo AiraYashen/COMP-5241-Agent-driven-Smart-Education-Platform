@@ -48,7 +48,6 @@ export default function StudentNotificationsPage() {
               ? <span style={{ color: "var(--accent)" }}>{t("notifications.unreadItems", { count: unreadCount })}</span>
               : t("notifications.allRead")}
           </p>
-          </p>
         </div>
         {unreadCount > 0 && (
           <button
