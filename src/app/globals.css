@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+/* ── BlackBoard Light Theme ── */
+:root {
+  --background: #f4f4f4;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-border: #e0e0e0;
+  --sidebar: #ffffff;
+  --sidebar-text: #1a1a1a;
+  --sidebar-hover: rgba(0,0,0,0.06);
+  --sidebar-border: #e0e0e0;
+  --accent: #c85400;
+  --accent-hover: #e86c00;
+  --accent-light: #fff0e6;
+  --muted: #6b7280;
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --header-bg: #ffffff;
+  --header-border: #e0e0e0;
+}
+
+/* ── BlackBoard Dark Theme ── */
+.dark {
+  --background: #141414;
+  --foreground: #e8e8e8;
+  --card: #1e1e1e;
+  --card-border: #2e2e2e;
+  --sidebar: #111518;
+  --sidebar-text: #d0d0d0;
+  --sidebar-hover: rgba(255,255,255,0.07);
+  --sidebar-border: rgba(255,255,255,0.08);
+  --accent: #e86c00;
+  --accent-hover: #ff8020;
+  --accent-light: #2a1800;
+  --muted: #9ca3af;
+  --input-bg: #252525;
+  --input-border: #3a3a3a;
+  --header-bg: #111518;
+  --header-border: rgba(255,255,255,0.06);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ========== 自定义动画 ========== */
+
+/* 渐入 */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 向上滑入（标题） */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 从右滑入（卡片） */
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* 字幕淡入上移 */
+@keyframes subtitle-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 进度条循环 */
+@keyframes progress-bar {
+  0%   { transform: translateX(-100%); opacity: 0.6; }
+  50%  { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0.6; }
+}
+
+/* 光标闪烁 */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* 声波动画（3 根柱子） */
+@keyframes sound-wave {
+  0%, 100% { height: 4px;  }
+  50%       { height: 16px; }
+}
+
+/* Tailwind 工具类映射 */
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out both;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-subtitle-in {
+  animation: subtitle-in 0.4s ease-out both;
+}
+
+.animate-progress-bar {
+  animation: progress-bar 2.5s ease-in-out infinite;
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+.animate-sound-wave {
+  animation: sound-wave 0.8s ease-in-out infinite;
+  min-height: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #111827 25%, #1f2937 50%, #111827 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes item-reveal {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.97); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-item-reveal {
+  animation: item-reveal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
