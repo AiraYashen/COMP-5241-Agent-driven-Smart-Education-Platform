@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, Button, Modal, Input } from "@/components/ui";
 import { useSession } from "next-auth/react";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 
 interface Announcement {
   id: string;
@@ -28,6 +29,9 @@ export default function AnnouncementsPage() {
   const [editAnn, setEditAnn] = useState<Announcement | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
 
   const load = async () => {
     if (!teacherId) return;
@@ -97,6 +101,33 @@ export default function AnnouncementsPage() {
     setReads(data ?? []);
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/teacher/upload-announcement-image", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      const mdImage = `\n![图片](${data.publicUrl})\n`;
+      const ta = contentRef.current;
+      if (ta) {
+        const start = ta.selectionStart ?? form.content.length;
+        const newContent = form.content.slice(0, start) + mdImage + form.content.slice(start);
+        setForm((f) => ({ ...f, content: newContent }));
+      } else {
+        setForm((f) => ({ ...f, content: f.content + mdImage }));
+      }
+    } catch (err: any) {
+      alert("图片上传失败：" + err.message);
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  };
+
   const handlePushUnread = async (ann: Announcement) => {
     // Write notifications for unread students
     const readStudentIds = reads.map((r) => r.student_id);
@@ -147,7 +178,9 @@ export default function AnnouncementsPage() {
                     </span>
                   )}
                 </div>
-                <p className="text-sm line-clamp-2" style={{ color: "var(--muted)" }}>{ann.content}</p>
+                <p className="text-sm line-clamp-2" style={{ color: "var(--muted)" }}>
+                  {ann.content.replace(/!\[.*?\]\(.*?\)/g, "[图片]").replace(/\n/g, " ")}
+                </p>
                 <p className="text-xs mt-2" style={{ color: "var(--muted)" }}>
                   {new Date(ann.created_at).toLocaleString("zh-CN")}
                 </p>
@@ -190,12 +223,32 @@ export default function AnnouncementsPage() {
           </div>
           <Input label="标题 *" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="请输入公告标题" />
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>内容</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium" style={{ color: "var(--foreground)" }}>内容</label>
+              <label
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-colors"
+                style={{ border: "1px solid var(--card-border)", color: uploadingImage ? "var(--muted)" : "var(--foreground)", background: "var(--background)" }}
+              >
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploadingImage}
+                  onChange={handleImageUpload}
+                />
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {uploadingImage ? "上传中…" : "插入图片"}
+              </label>
+            </div>
             <textarea
+              ref={contentRef}
               value={form.content}
               onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-              rows={4}
-              placeholder="请输入公告内容"
+              rows={5}
+              placeholder="请输入公告内容，支持 Markdown 格式"
               className="w-full px-3 py-2.5 rounded-lg text-sm border focus:outline-none resize-none"
               style={{ background: "var(--input-bg)", borderColor: "var(--input-border)", color: "var(--foreground)" }}
             />

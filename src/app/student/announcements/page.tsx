@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui";
 import { useSession } from "next-auth/react";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 
 export default function StudentAnnouncementsPage() {
   const { data: session } = useSession();
@@ -83,7 +84,9 @@ export default function StudentAnnouncementsPage() {
                       {a.users?.name} · {new Date(a.created_at).toLocaleDateString("zh-CN")}
                     </div>
                     {expanded === a.id && (
-                      <p className="text-sm mt-3 leading-relaxed" style={{ color: "var(--foreground)" }}>{a.content}</p>
+                      <div className="mt-3 text-sm" onClick={(e) => e.stopPropagation()}>
+                        <MarkdownRenderer content={a.content} />
+                      </div>
                     )}
                   </div>
                 </div>
