@@ -1,6 +1,7 @@
 ﻿"use client";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useTheme } from "next-themes";
 import { supabase } from "@/lib/supabase";
 import { Card, Button, Modal } from "@/components/ui";
 import mermaid from "mermaid";
@@ -9,8 +10,18 @@ type Tab = "overview" | "slides" | "mindmap" | "quiz";
 interface Slide { index: number; title: string; content: string; bullets: string[] }
 interface QuizQ { id: number; type: string; question: string; options: string[]; answer: string; explanation: string }
 
+const SS_KEY = "ai_workshop_result";
+
+function loadSession() {
+  try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? "null"); } catch { return null; }
+}
+function saveSession(data: any) {
+  try { sessionStorage.setItem(SS_KEY, JSON.stringify(data)); } catch {}
+}
+
 export default function AiPreviewPage() {
   const { data: session } = useSession();
+  const { resolvedTheme } = useTheme();
   const userId = (session?.user as any)?.id;
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState("");
@@ -38,6 +49,17 @@ export default function AiPreviewPage() {
   const [published, setPublished] = useState(false);
   const mermaidRef = useRef<HTMLDivElement>(null);
 
+  // Restore results from sessionStorage on mount
+  useEffect(() => {
+    const saved = loadSession();
+    if (!saved) return;
+    if (saved.tab) setTab(saved.tab);
+    if (saved.overview) setOverview(saved.overview);
+    if (saved.slides) setSlides(saved.slides);
+    if (saved.mindmapCode) setMindmapCode(saved.mindmapCode);
+    if (saved.quiz) setQuiz(saved.quiz);
+  }, []);
+
   useEffect(() => {
     if (userId) {
       supabase.from("teacher_classes").select("classes(id,name)").eq("teacher_id", userId)
@@ -47,7 +69,8 @@ export default function AiPreviewPage() {
 
   useEffect(() => {
     if (tab === "mindmap" && mindmapCode && mermaidRef.current) {
-      mermaid.initialize({ startOnLoad: false, theme: "dark" });
+      const isDark = resolvedTheme === "dark";
+      mermaid.initialize({ startOnLoad: false, theme: isDark ? "dark" : "default" });
       mermaidRef.current.innerHTML = "";
       mermaid.render("mindmap-svg-" + Date.now(), mindmapCode).then(({ svg }) => {
         if (mermaidRef.current) mermaidRef.current.innerHTML = svg;
@@ -56,7 +79,7 @@ export default function AiPreviewPage() {
           `<pre style="color:var(--muted);font-size:12px;white-space:pre-wrap">${mindmapCode}</pre>`;
       });
     }
-  }, [tab, mindmapCode]);
+  }, [tab, mindmapCode, resolvedTheme]);
 
   const getInputText = async (): Promise<string> => {
     if (inputMode === "file" && file) {
@@ -95,10 +118,18 @@ export default function AiPreviewPage() {
       const data = await res.json();
       if (tab === "overview") {
         setOverview(data);
+        saveSession({ tab, overview: data });
         if (userId) supabase.from("preview_videos").insert({ teacher_id: userId, summary_text: `${data.title}\n\n${data.summary}` });
-      } else if (tab === "slides") { setSlides(data); }
-      else if (tab === "mindmap") { setMindmapCode(data.code); }
-      else if (tab === "quiz") { setQuiz(data); setPublished(false); }
+      } else if (tab === "slides") {
+        setSlides(data);
+        saveSession({ tab, slides: data });
+      } else if (tab === "mindmap") {
+        setMindmapCode(data.code);
+        saveSession({ tab, mindmapCode: data.code });
+      } else if (tab === "quiz") {
+        setQuiz(data); setPublished(false);
+        saveSession({ tab, quiz: data });
+      }
     } catch (err: any) {
       setError(err.message ?? "生成失败");
     } finally {
@@ -208,7 +239,7 @@ export default function AiPreviewPage() {
                 style={{ background: "var(--accent)" }}>
                 进入 AI 微课
               </a>
-              <button onClick={() => { setOverview(null); setText(""); setFile(null); }}
+              <button onClick={() => { setOverview(null); setText(""); setFile(null); sessionStorage.removeItem(SS_KEY); }}
                 className="px-4 py-3 rounded-xl text-sm"
                 style={{ background: "var(--background)", color: "var(--muted)", border: "1px solid var(--card-border)" }}>
                 重新生成
