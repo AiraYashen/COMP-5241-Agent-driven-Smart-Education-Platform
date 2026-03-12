@@ -227,6 +227,7 @@ create table if not exists ai_assistants (
 -- Extend discussions table with new columns (safe if already exist)
 alter table discussions add column if not exists likes int default 0;
 alter table discussions add column if not exists image_url text;
+alter table discussions add column if not exists updated_at timestamptz;
 
 -- ============================================================
 --  Seed data for development/testing

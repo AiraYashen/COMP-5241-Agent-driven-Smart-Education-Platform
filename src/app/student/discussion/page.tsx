@@ -17,6 +17,11 @@ export default function StudentDiscussionPage() {
   const [replyContent, setReplyContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [likingId, setLikingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editImageUrl, setEditImageUrl] = useState<string | null>(null);
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = async (cid: string) => {
@@ -56,13 +61,17 @@ export default function StudentDiscussionPage() {
   };
 
   const uploadImage = async (): Promise<string | null> => {
-    if (!imageFile || !userId) return null;
-    const ext = imageFile.name.split(".").pop() ?? "jpg";
-    const path = `discussion/${userId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("uploads").upload(path, imageFile, { upsert: true });
-    if (error) return null;
-    const { data } = supabase.storage.from("uploads").getPublicUrl(path);
-    return data.publicUrl;
+    if (!imageFile) return null;
+    const fd = new FormData();
+    fd.append("file", imageFile);
+    try {
+      const res = await fetch("/api/upload-discussion-image", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) return null;
+      return data.publicUrl as string;
+    } catch {
+      return null;
+    }
   };
 
   const handlePost = async () => {
@@ -95,6 +104,35 @@ export default function StudentDiscussionPage() {
     await supabase.from("discussions").update({ likes: (currentLikes ?? 0) + 1 }).eq("id", postId);
     if (classId) load(classId);
     setLikingId(null);
+  };
+
+  const handleEditSave = async (id: string) => {
+    if (!editContent.trim()) return;
+    let newImageUrl = editImageUrl; // null if user removed it, existing URL if kept
+    if (editImageFile) {
+      const fd = new FormData();
+      fd.append("file", editImageFile);
+      try {
+        const res = await fetch("/api/upload-discussion-image", { method: "POST", body: fd });
+        const data = await res.json();
+        if (res.ok) newImageUrl = data.publicUrl;
+      } catch { /* keep existing */ }
+    }
+    await supabase.from("discussions").update({
+      content: editContent,
+      image_url: newImageUrl,
+      updated_at: new Date().toISOString(),
+    }).eq("id", id).eq("author_id", userId);
+    setEditingId(null);
+    setEditImageFile(null);
+    setEditImagePreview(null);
+    if (classId) load(classId);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("确认撤回该内容？此操作不可恢复。")) return;
+    await supabase.from("discussions").delete().eq("id", id).eq("author_id", userId);
+    if (classId) load(classId);
   };
 
   return (
@@ -154,15 +192,55 @@ export default function StudentDiscussionPage() {
                   <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: "var(--accent)", color: "#fff" }}>教师</span>
                 )}
                 {post.is_pinned && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>置顶</span>}
-                <span className="text-xs" style={{ color: "var(--muted)" }}>{new Date(post.created_at).toLocaleString("zh-CN")}</span>
-              </div>
-              <p className="text-sm" style={{ color: "var(--foreground)" }}>{post.content}</p>
-              {post.image_url && (
-                <img src={post.image_url} alt="post image" className="mt-2 max-w-xs rounded-xl" />
+                <span className="text-xs" style={{ color: "var(--muted)" }}>{new Date(post.created_at).toLocaleString("zh-CN")}</span>                  {post.updated_at && (
+                    <span className="text-xs" style={{ color: "var(--muted)" }}>· 已编辑于 {new Date(post.updated_at).toLocaleString("zh-CN")}</span>
+                  )}              </div>
+              {editingId === post.id ? (
+                <div className="mt-1 space-y-2">
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none resize-none"
+                    style={{ background: "var(--background)", borderColor: "var(--card-border)", color: "var(--foreground)" }}
+                  />
+                  {/* existing / new image preview */}
+                  {(editImagePreview || editImageUrl) && (
+                    <div className="flex items-center gap-2">
+                      <img src={editImagePreview ?? editImageUrl!} alt="预览" className="h-20 rounded-lg object-cover" />
+                      <button
+                        onClick={() => { setEditImageUrl(null); setEditImageFile(null); setEditImagePreview(null); }}
+                        className="text-xs" style={{ color: "var(--muted)" }}
+                      >× 移除</button>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <label className="cursor-pointer flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                        const f = e.target.files?.[0]; if (!f) return;
+                        setEditImageFile(f);
+                        const r = new FileReader(); r.onload = () => setEditImagePreview(r.result as string); r.readAsDataURL(f);
+                      }} />
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      更换图片
+                    </label>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => handleEditSave(post.id)}>保存</Button>
+                      <Button size="sm" variant="secondary" onClick={() => { setEditingId(null); setEditImageFile(null); setEditImagePreview(null); }}>取消</Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm" style={{ color: "var(--foreground)" }}>{post.content}</p>
+                  {post.image_url && (
+                    <img src={post.image_url} alt="图片" className="mt-2 max-w-xs rounded-xl" />
+                  )}
+                </>
               )}
 
-              {/* Like + Reply actions */}
-              <div className="flex items-center gap-4 mt-2">
+              {/* Like + Reply + Edit/Delete actions */}
+              <div className="flex items-center gap-4 mt-2 flex-wrap">
                 <button
                   onClick={() => handleLike(post.id, post.likes ?? 0)}
                   disabled={likingId === post.id}
@@ -178,6 +256,24 @@ export default function StudentDiscussionPage() {
                 >
                   {replyTo === post.id ? "收起" : "↩ 回复"}
                 </button>
+                {post.author_id === userId && editingId !== post.id && (
+                  <>
+                    <button
+                      onClick={() => { setEditingId(post.id); setEditContent(post.content); setEditImageUrl(post.image_url ?? null); setEditImageFile(null); setEditImagePreview(null); }}
+                      className="text-xs"
+                      style={{ color: "var(--muted)" }}
+                    >
+                      编辑
+                    </button>
+                    <button
+                      onClick={() => handleDelete(post.id)}
+                      className="text-xs"
+                      style={{ color: "#ef4444" }}
+                    >
+                      撤回
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* Replies */}
@@ -191,13 +287,59 @@ export default function StudentDiscussionPage() {
                       >
                         {r.users?.name?.charAt(0)}
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-medium" style={{ color: "var(--foreground)" }}>{r.users?.name}</span>
                           {r.users?.role === "TEACHER" && <span className="text-xs px-1 py-0.5 rounded" style={{ background: "var(--accent)", color: "#fff" }}>教师</span>}
                           <span className="text-xs" style={{ color: "var(--muted)" }}>{new Date(r.created_at).toLocaleString("zh-CN")}</span>
+                          {r.updated_at && (
+                            <span className="text-xs" style={{ color: "var(--muted)" }}>· 已编辑于 {new Date(r.updated_at).toLocaleString("zh-CN")}</span>
+                          )}
                         </div>
-                        <p className="text-sm mt-0.5" style={{ color: "var(--foreground)" }}>{r.content}</p>
+                        {editingId === r.id ? (
+                          <div className="mt-1 space-y-1.5">
+                            <textarea
+                              value={editContent}
+                              onChange={(e) => setEditContent(e.target.value)}
+                              rows={2}
+                              className="w-full px-2 py-1.5 rounded-lg text-sm border focus:outline-none resize-none"
+                              style={{ background: "var(--card)", borderColor: "var(--card-border)", color: "var(--foreground)" }}
+                            />
+                            {(editImagePreview || editImageUrl) && (
+                              <div className="flex items-center gap-2">
+                                <img src={editImagePreview ?? editImageUrl!} alt="预览" className="h-16 rounded-lg object-cover" />
+                                <button onClick={() => { setEditImageUrl(null); setEditImageFile(null); setEditImagePreview(null); }} className="text-xs" style={{ color: "var(--muted)" }}>× 移除</button>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between">
+                              <label className="cursor-pointer flex items-center gap-1 text-xs" style={{ color: "var(--muted)" }}>
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                  const f = e.target.files?.[0]; if (!f) return;
+                                  setEditImageFile(f);
+                                  const rd = new FileReader(); rd.onload = () => setEditImagePreview(rd.result as string); rd.readAsDataURL(f);
+                                }} />
+                                更换图片
+                              </label>
+                              <div className="flex gap-1.5">
+                                <Button size="sm" onClick={() => handleEditSave(r.id)}>保存</Button>
+                                <Button size="sm" variant="secondary" onClick={() => { setEditingId(null); setEditImageFile(null); setEditImagePreview(null); }}>取消</Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm mt-0.5" style={{ color: "var(--foreground)" }}>{r.content}</p>
+                            {r.image_url && (
+                              <img src={r.image_url} alt="图片" className="mt-1.5 max-w-xs rounded-xl" />
+                            )}
+                            {r.author_id === userId && (
+                              <div className="flex gap-3 mt-1">
+                                <button onClick={() => { setEditingId(r.id); setEditContent(r.content); setEditImageUrl(r.image_url ?? null); setEditImageFile(null); setEditImagePreview(null); }} className="text-xs" style={{ color: "var(--muted)" }}>编辑</button>
+                                <button onClick={() => handleDelete(r.id)} className="text-xs" style={{ color: "#ef4444" }}>撤回</button>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
