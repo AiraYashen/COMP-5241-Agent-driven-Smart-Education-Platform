@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Card, Button } from "@/components/ui";
 import { useSession } from "next-auth/react";
 import { supabase } from "@/lib/supabase";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 
 interface Message {
   role: "user" | "assistant";
@@ -136,17 +137,27 @@ export default function AiChatPage() {
     setLoading(true);
 
     try {
+      // Build history: last 20 messages excluding the one just added, strip image data
+      const history = [...messages, userMsg]
+        .filter((m) => !m.hasImage) // exclude messages that were image-only
+        .slice(-20)
+        .map(({ role, content }) => ({ role, content }));
+      // Remove the last entry (current user message) to avoid duplication;
+      // route will append it internally
+      const historyToSend = history.slice(0, -1);
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question: input || "\u8bf7\u5e2e\u6211\u89e3\u7b54\u8fd9\u9053\u9898",
-          context: "\u5b66\u751f\u5b66\u4e60\u52a9\u624b\u5bf9\u8bdd",
+          question: input || "请帮我解答这道题",
           imageBase64: image,
           systemPrompt: buildSystemPrompt(),
+          history: image ? [] : historyToSend,
         }),
       });
       const text = await res.text();
+      if (!res.ok) throw new Error(text);
       setMessages((prev) => [...prev, { role: "assistant", content: text, timestamp: Date.now() }]);
     } catch {
       setMessages((prev) => [...prev, { role: "assistant", content: "\u629c\u6b49\uff0cAI \u6682\u65f6\u65e0\u6cd5\u56de\u7b54\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002", timestamp: Date.now() }]);
@@ -160,13 +171,17 @@ export default function AiChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">{taEmoji}</span>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent)" }}>
+            <svg fill="none" stroke="#fff" viewBox="0 0 24 24" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-4 4v-4z" />
+            </svg>
+          </div>
           <div>
             <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{taName}</h2>
-            <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>\u95ee\u6211\u4efb\u4f55\u5b66\u4e60\u95ee\u9898\uff0c\u6216\u4e0a\u4f20\u4f5c\u4e1a\u56fe\u7247\u89e3\u9898</p>
+            <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>问我任何学习问题，或上传作业图片解题</p>
           </div>
         </div>
         <button
@@ -175,7 +190,7 @@ export default function AiChatPage() {
           style={{ borderColor: "var(--card-border)", color: "var(--muted)" }}
           title="\u6e05\u9664\u6240\u6709\u804a\u5929\u8bb0\u5f55"
         >
-          \u6e05\u9664\u8bb0\u5f55
+          清除记录
         </button>
       </div>
 
@@ -185,10 +200,10 @@ export default function AiChatPage() {
           {messages.map((msg, i) => (
             <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                 style={{ background: msg.role === "assistant" ? "var(--accent)" : "#3b82f6" }}
               >
-                {msg.role === "assistant" ? taEmoji : (session?.user?.name?.charAt(0) ?? "\u6211")}
+                {msg.role === "assistant" ? "AI" : (session?.user?.name?.charAt(0) ?? "\u6211")}
               </div>
               <div className={`max-w-[75%] ${msg.role === "user" ? "items-end" : "items-start"} flex flex-col gap-2`}>
                 {msg.image && (
@@ -196,14 +211,18 @@ export default function AiChatPage() {
                 )}
                 {msg.content && (
                   <div
-                    className="px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed"
+                    className="px-4 py-3 rounded-2xl text-sm leading-relaxed"
                     style={{
                       background: msg.role === "user" ? "var(--accent)" : "var(--background)",
                       color: msg.role === "user" ? "#fff" : "var(--foreground)",
                       border: msg.role === "assistant" ? "1px solid var(--card-border)" : "none",
                     }}
                   >
-                    {msg.content}
+                    {msg.role === "assistant" ? (
+                      <MarkdownRenderer content={msg.content} />
+                    ) : (
+                      <span className="whitespace-pre-wrap">{msg.content}</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -211,9 +230,9 @@ export default function AiChatPage() {
           ))}
           {loading && (
             <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ background: "var(--accent)" }}>{taEmoji}</div>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: "var(--accent)" }}>AI</div>
               <div className="px-4 py-3 rounded-2xl text-sm" style={{ background: "var(--background)", border: "1px solid var(--card-border)", color: "var(--muted)" }}>
-                <span className="animate-pulse">\u6b63\u5728\u601d\u8003\u4e2d\u2026</span>
+                <span className="animate-pulse">正在思考中…</span>
               </div>
             </div>
           )}
@@ -226,7 +245,7 @@ export default function AiChatPage() {
         {image && (
           <div className="mb-3 flex items-center gap-2">
             <img src={image} alt="preview" className="h-16 rounded-lg object-cover" />
-            <button onClick={() => setImage(null)} className="text-xs" style={{ color: "var(--muted)" }}>\u2715 \u79fb\u9664</button>
+            <button onClick={() => setImage(null)} className="text-xs" style={{ color: "var(--muted)" }}>✕ 移除</button>
           </div>
         )}
         <div className="flex gap-2 items-end">
@@ -245,11 +264,11 @@ export default function AiChatPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={2}
-            placeholder="\u8f93\u5165\u95ee\u9898\uff0c\u6309 Enter \u53d1\u9001\uff08Shift+Enter \u6362\u884c\uff09"
+            placeholder="输入问题，按 Enter 发送（Shift+Enter 换行）"
             className="flex-1 px-3 py-2 rounded-lg text-sm border focus:outline-none resize-none"
             style={{ background: "var(--background)", borderColor: "var(--card-border)", color: "var(--foreground)" }}
           />
-          <Button onClick={sendMessage} disabled={!input.trim() && !image} loading={loading} className="flex-shrink-0">\u53d1\u9001</Button>
+          <Button onClick={sendMessage} disabled={!input.trim() && !image} loading={loading} className="flex-shrink-0">发送</Button>
         </div>
       </Card>
     </div>

@@ -180,3 +180,20 @@ export async function streamAnswer(userQuestion: string, context: string, system
     stream: true,
   });
 }
+
+/** 带历史记忆的流式对话（AI 学习助手） */
+export async function streamAnswerWithHistory(
+  history: Array<{ role: "user" | "assistant"; content: string }>,
+  systemPrompt: string
+) {
+  return getClient().chat.completions.create({
+    model: "deepseek-chat",
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...history,
+    ],
+    temperature: 0.7,
+    max_tokens: 1500,
+    stream: true,
+  });
+}

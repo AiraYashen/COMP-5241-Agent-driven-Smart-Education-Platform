@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { streamAnswer, deepseekChat } from "@/lib/deepseek";
+import { streamAnswer, streamAnswerWithHistory } from "@/lib/deepseek";
 import OpenAI from "openai";
 
 export const runtime = "nodejs";
@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
       context?: string;
       imageBase64?: string;
       systemPrompt?: string;
+      history?: Array<{ role: "user" | "assistant"; content: string }>;
     };
     const question = body.userQuestion ?? body.question ?? "";
     if (!question && !body.imageBase64) {
@@ -23,23 +24,58 @@ export async function POST(request: NextRequest) {
     }
     const systemContent = body.systemPrompt ?? DEFAULT_SYSTEM;
 
-    // Image mode: non-streaming response
+    // Image mode: use DashScope Qwen-VL for vision analysis
     if (body.imageBase64) {
-      const messages: any[] = [
-        { role: "system", content: systemContent },
+      const dashscopeKey = process.env.DASHSCOPE_API_KEY;
+      if (!dashscopeKey) {
+        return new Response("视觉分析功能未配置（缺少 DASHSCOPE_API_KEY）", { status: 500 });
+      }
+      const visionRes = await fetch(
+        "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
         {
-          role: "user",
-          content: [
-            { type: "text", text: question || "请帮我解答这道题" },
-            { type: "image_url", image_url: { url: body.imageBase64 } },
-          ],
-        },
-      ];
-      const text = await deepseekChat(messages, { max_tokens: 1000 });
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${dashscopeKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "qwen-vl-plus",
+            messages: [
+              { role: "system", content: systemContent },
+              {
+                role: "user",
+                content: [
+                  { type: "image_url", image_url: { url: body.imageBase64 } },
+                  { type: "text", text: question || "请帮我解答这道题" },
+                ],
+              },
+            ],
+            max_tokens: 1500,
+          }),
+        }
+      );
+      if (!visionRes.ok) {
+        const errText = await visionRes.text();
+        throw new Error(`图片分析请求失败: ${visionRes.status} - ${errText}`);
+      }
+      const visionData = await visionRes.json();
+      const replyContent = visionData.choices?.[0]?.message?.content;
+      const text = typeof replyContent === "string"
+        ? replyContent
+        : Array.isArray(replyContent)
+          ? replyContent.map((c: any) => c.text ?? "").join("")
+          : "无法解析图片内容，请重试。";
       return new Response(text, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
 
-    const completion = await streamAnswer(question, body.context ?? "", systemContent);
+    // Text mode: streaming with conversation history
+    const history = body.history ?? [];
+    // Append current question to history for the API call
+    const fullHistory: Array<{ role: "user" | "assistant"; content: string }> = [
+      ...history,
+      { role: "user", content: question },
+    ];
+    const completion = await streamAnswerWithHistory(fullHistory, systemContent);
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
