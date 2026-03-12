@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { useSession } from "next-auth/react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -104,7 +104,7 @@ function IconClose() {
 
 // ─── Per-node icons ───────────────────────────────────────────────────────────
 
-const NODE_ICONS: Record<string, () => JSX.Element> = {
+const NODE_ICONS: Record<string, () => ReactElement> = {
   start: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-5 h-5" strokeWidth={1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
