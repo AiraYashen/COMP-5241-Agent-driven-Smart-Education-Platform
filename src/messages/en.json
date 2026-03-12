@@ -1,0 +1,181 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "schedule": "Schedule",
+    "announcements": "Announcements",
+    "assignments": "Assignments",
+    "grades": "Grades",
+    "materials": "Materials",
+    "discussion": "Discussion",
+    "analytics": "Analytics",
+    "grading": "Auto Grading",
+    "wrongQuestions": "Mistake Analysis",
+    "aiPreview": "AI Workshop",
+    "scenarioAnalytics": "Scenario Analytics",
+    "aiTa": "AI TA Config",
+    "scenario": "ChronoCo-pilot",
+    "knowledgeMap": "Knowledge Map",
+    "schools": "Schools",
+    "classes": "Classes",
+    "users": "Users",
+    "aiChat": "AI Q&A",
+    "notifications": "Notifications",
+    "logout": "Logout"
+  },
+  "login": {
+    "title": "EduPlatform",
+    "subtitle": "Smart Education Platform",
+    "selectSchool": "Select School",
+    "phone": "Phone",
+    "phonePlaceholder": "Enter phone number",
+    "getCode": "Get Code",
+    "resend": "Resend",
+    "otpPlaceholder": "Enter verification code",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "loginBtn": "Login",
+    "switchToPassword": "Login with Password",
+    "switchToOtp": "Login with OTP",
+    "mockTip": "Demo mode: use code 123456",
+    "loggingIn": "Logging in...",
+    "error": {
+      "invalidPhone": "Please enter a valid phone number",
+      "invalidOtp": "Invalid or expired code",
+      "wrongPassword": "Wrong phone or password",
+      "generic": "Login failed, please try again"
+    }
+  },
+  "dashboard": {
+    "welcome": "Hello",
+    "todaySchedule": "Today's Classes",
+    "unreadAnnouncements": "Unread Announcements",
+    "pendingAssignments": "Pending Assignments",
+    "recentGrades": "Recent Grades"
+  },
+  "schedule": {
+    "title": "Schedule",
+    "weekDays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "noClass": "No class"
+  },
+  "announcements": {
+    "title": "Announcements",
+    "new": "New Announcement",
+    "readCount": "Read",
+    "unreadCount": "Unread",
+    "pushUnread": "Push to Unread",
+    "markRead": "Mark as Read",
+    "alreadyRead": "Read"
+  },
+  "assignments": {
+    "title": "Assignments",
+    "new": "New Assignment",
+    "deadline": "Deadline",
+    "submitted": "Submitted",
+    "notSubmitted": "Not Submitted",
+    "lateAllowed": "Late Allowed",
+    "submit": "Submit",
+    "viewSubmissions": "View Submissions",
+    "score": "Score",
+    "feedback": "Feedback"
+  },
+  "grades": {
+    "title": "Grades",
+    "publish": "Publish Grades",
+    "subject": "Subject",
+    "score": "Score",
+    "total": "Total",
+    "exam": "Exam Name",
+    "analysis": "AI Analysis",
+    "importExcel": "Import Excel",
+    "uploadPaper": "Upload Paper"
+  },
+  "materials": {
+    "title": "Materials",
+    "upload": "Upload Material",
+    "download": "Download",
+    "preview": "Preview",
+    "askAbout": "Ask AI",
+    "previewVideo": "Generate Preview",
+    "fileTypes": "Supports PDF, PPT, Word, Video and more"
+  },
+  "discussion": {
+    "title": "Discussion",
+    "newPost": "New Post",
+    "reply": "Reply",
+    "pinned": "Pinned",
+    "noPost": "No posts yet"
+  },
+  "analytics": {
+    "title": "Learning Analytics",
+    "studyTime": "Study Time",
+    "accuracy": "Accuracy",
+    "radar": "Subject Radar",
+    "wrongCount": "Mistakes",
+    "minutes": "min"
+  },
+  "grading": {
+    "title": "Auto Grading",
+    "uploadImage": "Upload Assignment Image",
+    "analyzing": "AI Analyzing...",
+    "result": "Grading Result",
+    "score": "Score",
+    "comments": "Comments"
+  },
+  "wrongQuestions": {
+    "title": "Mistake Analysis",
+    "knowledgePoint": "Knowledge Point",
+    "count": "Count",
+    "aiAnalysis": "AI Weakness Analysis",
+    "practice": "Practice"
+  },
+  "aiPreview": {
+    "title": "AI Teaching Assistant",
+    "subtitle": "Upload materials, AI generates a pre-class preview",
+    "uploadMaterial": "Upload Material",
+    "generate": "Generate Preview",
+    "generating": "Generating...",
+    "viewLesson": "Play Preview",
+    "hint": "Supports PPT, PDF, Word, images and more"
+  },
+  "admin": {
+    "title": "Admin Console",
+    "schools": "Schools",
+    "addSchool": "Add School",
+    "classes": "Classes",
+    "addClass": "Add Class",
+    "users": "Users",
+    "addUser": "Add User",
+    "scheduleManage": "Schedule Management"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "noData": "No data",
+    "search": "Search",
+    "upload": "Upload",
+    "submit": "Submit",
+    "back": "Back",
+    "next": "Next",
+    "name": "Name",
+    "phone": "Phone",
+    "role": "Role",
+    "school": "School",
+    "class": "Class",
+    "subject": "Subject",
+    "actions": "Actions",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode",
+    "language": "Language",
+    "studentCenter": "Student Center",
+    "teacherWorkbench": "Teacher Workbench"
+  },
+  "roles": {
+    "ADMIN": "Admin",
+    "TEACHER": "Teacher",
+    "STUDENT": "Student"
+  }
+}

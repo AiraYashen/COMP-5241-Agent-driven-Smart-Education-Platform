@@ -1,0 +1,181 @@
+{
+  "nav": {
+    "dashboard": "首页",
+    "schedule": "课表",
+    "announcements": "公告",
+    "assignments": "作业",
+    "grades": "成绩",
+    "materials": "课件",
+    "discussion": "讨论区",
+    "analytics": "学情统计",
+    "grading": "自动改题",
+    "wrongQuestions": "错题统计",
+    "aiPreview": "AI 教学工坊",
+    "scenarioAnalytics": "情景分析",
+    "aiTa": "AI TA 配置",
+    "scenario": "时空助教",
+    "knowledgeMap": "知识地图",
+    "schools": "学校管理",
+    "classes": "班级管理",
+    "users": "用户管理",
+    "aiChat": "AI 问答",
+    "notifications": "消息通知",
+    "logout": "退出登录"
+  },
+  "login": {
+    "title": "EduPlatform",
+    "subtitle": "智慧教育平台",
+    "selectSchool": "选择学校",
+    "phone": "手机号",
+    "phonePlaceholder": "请输入手机号",
+    "getCode": "获取验证码",
+    "resend": "重新发送",
+    "otpPlaceholder": "请输入验证码",
+    "password": "密码",
+    "passwordPlaceholder": "请输入密码",
+    "loginBtn": "登录",
+    "switchToPassword": "账号密码登录",
+    "switchToOtp": "手机验证码登录",
+    "mockTip": "演示模式：验证码为 123456",
+    "loggingIn": "登录中...",
+    "error": {
+      "invalidPhone": "请输入有效的手机号",
+      "invalidOtp": "验证码错误或已过期",
+      "wrongPassword": "手机号或密码错误",
+      "generic": "登录失败，请重试"
+    }
+  },
+  "dashboard": {
+    "welcome": "你好",
+    "todaySchedule": "今日课程",
+    "unreadAnnouncements": "未读公告",
+    "pendingAssignments": "待完成作业",
+    "recentGrades": "最新成绩"
+  },
+  "schedule": {
+    "title": "课表",
+    "weekDays": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+    "noClass": "暂无课程"
+  },
+  "announcements": {
+    "title": "公告",
+    "new": "发布公告",
+    "readCount": "已读",
+    "unreadCount": "未读",
+    "pushUnread": "推送未读学生",
+    "markRead": "标为已读",
+    "alreadyRead": "已读"
+  },
+  "assignments": {
+    "title": "作业",
+    "new": "布置作业",
+    "deadline": "截止时间",
+    "submitted": "已提交",
+    "notSubmitted": "未提交",
+    "lateAllowed": "允许补交",
+    "submit": "提交作业",
+    "viewSubmissions": "查看提交",
+    "score": "得分",
+    "feedback": "评语"
+  },
+  "grades": {
+    "title": "成绩",
+    "publish": "发布成绩",
+    "subject": "科目",
+    "score": "分数",
+    "total": "满分",
+    "exam": "考试名称",
+    "analysis": "AI分析",
+    "importExcel": "导入Excel",
+    "uploadPaper": "上传原卷"
+  },
+  "materials": {
+    "title": "课件",
+    "upload": "上传课件",
+    "download": "下载",
+    "preview": "预览",
+    "askAbout": "提问",
+    "previewVideo": "生成预习视频",
+    "fileTypes": "支持 PDF、PPT、Word、视频等格式"
+  },
+  "discussion": {
+    "title": "讨论区",
+    "newPost": "发帖",
+    "reply": "回复",
+    "pinned": "置顶",
+    "noPost": "暂无讨论"
+  },
+  "analytics": {
+    "title": "学情统计",
+    "studyTime": "学习时长",
+    "accuracy": "正确率",
+    "radar": "各科雷达图",
+    "wrongCount": "错题次数",
+    "minutes": "分钟"
+  },
+  "grading": {
+    "title": "自动改题",
+    "uploadImage": "上传作业图片",
+    "analyzing": "AI判分中...",
+    "result": "判分结果",
+    "score": "得分",
+    "comments": "评语"
+  },
+  "wrongQuestions": {
+    "title": "错题统计",
+    "knowledgePoint": "知识点",
+    "count": "错误次数",
+    "aiAnalysis": "AI分析薄弱点",
+    "practice": "练习题"
+  },
+  "aiPreview": {
+    "title": "教学辅助",
+    "subtitle": "上传课件材料，AI生成课前预习视频",
+    "uploadMaterial": "上传材料",
+    "generate": "生成预习内容",
+    "generating": "AI生成中...",
+    "viewLesson": "播放预习视频",
+    "hint": "支持PPT、PDF、Word、图片等格式"
+  },
+  "admin": {
+    "title": "管理后台",
+    "schools": "学校管理",
+    "addSchool": "添加学校",
+    "classes": "班级管理",
+    "addClass": "添加班级",
+    "users": "用户管理",
+    "addUser": "添加用户",
+    "scheduleManage": "课表管理"
+  },
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "confirm": "确认",
+    "loading": "加载中...",
+    "noData": "暂无数据",
+    "search": "搜索",
+    "upload": "上传",
+    "submit": "提交",
+    "back": "返回",
+    "next": "下一步",
+    "name": "姓名",
+    "phone": "手机号",
+    "role": "角色",
+    "school": "学校",
+    "class": "班级",
+    "subject": "科目",
+    "actions": "操作",
+    "darkMode": "深色模式",
+    "lightMode": "浅色模式",
+    "language": "语言",
+    "studentCenter": "学生学习中心",
+    "teacherWorkbench": "教师工作台"
+  },
+  "roles": {
+    "ADMIN": "管理员",
+    "TEACHER": "教师",
+    "STUDENT": "学生"
+  }
+}
