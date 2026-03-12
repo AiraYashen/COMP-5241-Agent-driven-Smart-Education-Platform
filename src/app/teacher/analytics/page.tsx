@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, Legend
@@ -10,6 +11,7 @@ import {
 
 export default function AnalyticsPage() {
   const { data: session } = useSession();
+  const t = useTranslations();
   const userId = (session?.user as any)?.id;
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState("");
@@ -97,8 +99,8 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>学情分析</h2>
-        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>查看班级学生学习行为数据</p>
+        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("analyticsEx.classTitle")}</h2>
+        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("analyticsEx.classSub")}</p>
       </div>
 
       {classes.length > 0 && (
@@ -121,16 +123,16 @@ export default function AnalyticsPage() {
       )}
 
       {loading ? (
-        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>加载中...</p></Card>
+        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("common.loading")}</p></Card>
       ) : students.length === 0 ? (
-        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>该班级暂无学生数据</p></Card>
+        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("analyticsEx.noStudentData")}</p></Card>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Study time */}
           <Card>
-            <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>学习时长（分钟）</h3>
+            <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("analyticsEx.studyTimeMin")}</h3>
             {viewData.length === 0 ? (
-              <p className="text-sm text-center py-6" style={{ color: "var(--muted)" }}>暂无学习记录</p>
+              <p className="text-sm text-center py-6" style={{ color: "var(--muted)" }}>{t("analyticsEx.noStudyRecords")}</p>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={viewData} margin={{ left: -10 }}>
@@ -138,7 +140,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="name" tick={{ fill: "var(--muted)", fontSize: 11 }} />
                   <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} />
                   <Tooltip contentStyle={chartTooltipStyle} />
-                  <Bar dataKey="minutes" fill="var(--accent)" radius={[4, 4, 0, 0]} name="分钟" />
+                  <Bar dataKey="minutes" fill="var(--accent)" radius={[4, 4, 0, 0]} name={t("analytics.minutes")} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -146,9 +148,9 @@ export default function AnalyticsPage() {
 
           {/* Submission behaviour */}
           <Card>
-            <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>作业完成情况</h3>
+            <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("analyticsEx.assignmentCompletion")}</h3>
             {submissionData.length === 0 ? (
-              <p className="text-sm text-center py-6" style={{ color: "var(--muted)" }}>暂无提交记录</p>
+              <p className="text-sm text-center py-6" style={{ color: "var(--muted)" }}>{t("analyticsEx.noSubmissions")}</p>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={submissionData} margin={{ left: -10 }}>
@@ -157,8 +159,8 @@ export default function AnalyticsPage() {
                   <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} />
                   <Tooltip contentStyle={chartTooltipStyle} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="onTime" fill="#22c55e" radius={[4, 4, 0, 0]} name="准时" />
-                  <Bar dataKey="late" fill="#ef4444" radius={[4, 4, 0, 0]} name="迟交" />
+                  <Bar dataKey="onTime" fill="#22c55e" radius={[4, 4, 0, 0]} name={t("common.onTime")} />
+                  <Bar dataKey="late" fill="#ef4444" radius={[4, 4, 0, 0]} name={t("common.late")} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -166,9 +168,9 @@ export default function AnalyticsPage() {
 
           {/* Wrong questions */}
           <Card className="xl:col-span-2">
-            <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>易错知识点 TOP 10</h3>
+            <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("analyticsEx.top10Mistakes")}</h3>
             {wrongData.length === 0 ? (
-              <p className="text-sm text-center py-6" style={{ color: "var(--muted)" }}>暂无错题记录</p>
+              <p className="text-sm text-center py-6" style={{ color: "var(--muted)" }}>{t("analyticsEx.noMistakeRecords")}</p>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={wrongData} layout="vertical" margin={{ left: 20, right: 20 }}>
@@ -176,7 +178,7 @@ export default function AnalyticsPage() {
                   <XAxis type="number" tick={{ fill: "var(--muted)", fontSize: 11 }} />
                   <YAxis dataKey="point" type="category" tick={{ fill: "var(--muted)", fontSize: 11 }} width={90} />
                   <Tooltip contentStyle={chartTooltipStyle} />
-                  <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} name="错误次数" />
+                  <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} name={t("analyticsEx.mistakeCount")} />
                 </BarChart>
               </ResponsiveContainer>
             )}

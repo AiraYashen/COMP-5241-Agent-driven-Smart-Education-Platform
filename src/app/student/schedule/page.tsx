@@ -1,9 +1,9 @@
 import { auth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase";
 import { Card } from "@/components/ui";
+import { getTranslations, getMessages } from "next-intl/server";
 
 const DAYS = [1, 2, 3, 4, 5] as const;
-const DAY_LABELS: Record<number, string> = { 1: "周一", 2: "周二", 3: "周三", 4: "周四", 5: "周五" };
 const SUBJECT_COLORS: Record<string, string> = {
   语文: "#ef4444", 数学: "#3b82f6", 英语: "#22c55e", 物理: "#a855f7",
   化学: "#f59e0b", 生物: "#06b6d4", 历史: "#f97316", 地理: "#84cc16",
@@ -21,10 +21,14 @@ export default async function StudentSchedulePage() {
   const session = await auth();
   const userId = (session?.user as any)?.id;
   const sb = createAdminClient();
+  const t = await getTranslations();
+  const messages = await getMessages();
+  const weekDays = ((messages as any).schedule?.weekDays ?? ["周一","周二","周三","周四","周五"]) as string[];
+  const DAY_LABELS: Record<number, string> = { 1: weekDays[0], 2: weekDays[1], 3: weekDays[2], 4: weekDays[3], 5: weekDays[4] };
 
   const { data: enrollment } = await sb.from("enrollments").select("class_id, classes(name)").eq("student_id", userId).single();
   const classId = enrollment?.class_id;
-  const className = (enrollment?.classes as any)?.name ?? "未分配班级";
+  const className = (enrollment?.classes as any)?.name ?? t("dashboard.noClass");
 
   const { data: schedules } = classId
     ? await sb.from("schedules").select("weekday, time_start, time_end, subject, room, users(name), week_type").eq("class_id", classId).order("time_start")
@@ -39,7 +43,7 @@ export default async function StudentSchedulePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>我的课表</h2>
+        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("scheduleEx.mySchedule")}</h2>
         <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{className}</p>
       </div>
 
@@ -61,7 +65,7 @@ export default async function StudentSchedulePage() {
                   className="text-xs text-center py-4 rounded-xl"
                   style={{ background: "var(--background)", color: "var(--muted)", border: "1px dashed var(--card-border)" }}
                 >
-                  无课
+                  {t("schedule.noClass")}
                 </div>
               ) : (
                 grouped[d].map((s: any, i: number) => {

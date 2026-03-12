@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, Button } from "@/components/ui";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 
 interface WrongItem {
   knowledge_point: string;
@@ -11,6 +12,7 @@ interface WrongItem {
 }
 
 export default function WrongQuestionsPage() {
+  const t = useTranslations();
   const { data: session } = useSession();
   const teacherId = (session?.user as any)?.id;
   const [items, setItems] = useState<WrongItem[]>([]);
@@ -56,21 +58,21 @@ export default function WrongQuestionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>错题统计</h2>
-          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>汇总学生错题，AI分析薄弱知识点</p>
+          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("wrongQuestions.title")}</h2>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("wrongQuestionsEx.manageSub")}</p>
         </div>
         <Button onClick={handleAnalyze} loading={analysisLoading} disabled={items.length === 0}>
-          AI分析薄弱点
+        {t("wrongQuestionsEx.analyzeBtn")}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <h3 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>错题频次排行</h3>
+          <h3 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("wrongQuestionsEx.frequencyRank")}</h3>
           {loading ? (
-            <p className="text-center py-4" style={{ color: "var(--muted)" }}>加载中...</p>
+            <p className="text-center py-4" style={{ color: "var(--muted)" }}>{t("common.loading")}</p>
           ) : items.length === 0 ? (
-            <p className="text-center py-8" style={{ color: "var(--muted)" }}>暂无错题记录</p>
+            <p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("wrongQuestionsEx.noMistakes")}</p>
           ) : (
             <div className="space-y-3">
               {items.slice(0, 15).map((item, i) => (
@@ -84,7 +86,7 @@ export default function WrongQuestionsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>{item.knowledge_point}</span>
-                      <span className="text-xs ml-2 flex-shrink-0" style={{ color: "var(--muted)" }}>{item.subject} · {item.count}次</span>
+                      <span className="text-xs ml-2 flex-shrink-0" style={{ color: "var(--muted)" }}>{item.subject} · {item.count}{t("wrongQuestionsEx.times")}</span>
                     </div>
                     <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "var(--background)" }}>
                       <div
@@ -102,13 +104,13 @@ export default function WrongQuestionsPage() {
         <div className="space-y-4">
           {analysis && (
             <Card>
-              <h3 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>AI薄弱点分析</h3>
+              <h3 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>{t("wrongQuestions.aiAnalysis")}</h3>
               <div className="text-sm whitespace-pre-line" style={{ color: "var(--muted)" }}>{analysis}</div>
             </Card>
           )}
           {practice && (
             <Card>
-              <h3 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>自动生成练习题</h3>
+              <h3 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>{t("wrongQuestionsEx.generatePractice")}</h3>
               <div className="text-sm whitespace-pre-line" style={{ color: "var(--foreground)" }}>{practice}</div>
             </Card>
           )}
@@ -116,7 +118,7 @@ export default function WrongQuestionsPage() {
             <Card>
               <div className="flex items-center justify-center h-40" style={{ color: "var(--muted)" }}>
                 <div className="text-center">
-                  <p className="text-sm">点击「AI分析薄弱点」生成分析报告</p>
+                  <p className="text-sm">{t("wrongQuestionsEx.analysisHint")}</p>
                 </div>
               </div>
             </Card>

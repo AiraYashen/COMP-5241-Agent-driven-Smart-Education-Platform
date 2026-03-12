@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Card, Button, Modal, Input } from "@/components/ui";
 import { useSession } from "next-auth/react";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import { useTranslations } from "next-intl";
 
 interface Announcement {
   id: string;
@@ -16,6 +17,7 @@ interface Announcement {
 }
 
 export default function AnnouncementsPage() {
+  const t = useTranslations();
   const { data: session } = useSession();
   const teacherId = (session?.user as any)?.id;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -121,7 +123,7 @@ export default function AnnouncementsPage() {
         setForm((f) => ({ ...f, content: f.content + mdImage }));
       }
     } catch (err: any) {
-      alert("图片上传失败：" + err.message);
+      alert(t("announcementsEx.imageUploadFailed") + ": " + err.message);
     } finally {
       setUploadingImage(false);
       if (imageInputRef.current) imageInputRef.current.value = "";
@@ -136,7 +138,7 @@ export default function AnnouncementsPage() {
       .select("student_id")
       .eq("class_id", ann.classes ? (ann as any).class_id : "");
     const unread = (enrolled ?? []).filter((e: any) => !readStudentIds.includes(e.student_id));
-    if (unread.length === 0) { alert("所有学生已读"); return; }
+    if (unread.length === 0) { alert(t("announcementsEx.allStudentsRead")); return; }
     await supabase.from("notifications").insert(
       unread.map((e: any) => ({
         user_id: e.student_id,
@@ -146,7 +148,7 @@ export default function AnnouncementsPage() {
         related_id: ann.id,
       }))
     );
-    alert(`已向 ${unread.length} 名未读学生发送提醒`);
+    alert(t("announcementsEx.sentReminder", { count: unread.length }));
   };
 
   const selectedAnn = announcements.find((a) => a.id === detailId);
@@ -155,17 +157,17 @@ export default function AnnouncementsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>公告管理</h2>
-          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>发布公告并跟踪学生已读情况</p>
+          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("announcementsEx.manageTitle")}</h2>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("announcementsEx.manageSub")}</p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>+ 发布公告</Button>
+        <Button onClick={() => setModalOpen(true)}>+ {t("announcements.new")}</Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
         {loading ? (
-          <Card><p className="text-center py-4" style={{ color: "var(--muted)" }}>加载中...</p></Card>
+          <Card><p className="text-center py-4" style={{ color: "var(--muted)" }}>{t("common.loading")}</p></Card>
         ) : announcements.length === 0 ? (
-          <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>暂无公告</p></Card>
+          <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("announcementsEx.noAnnouncements")}</p></Card>
         ) : announcements.map((ann) => (
           <Card key={ann.id}>
             <div className="flex items-start justify-between gap-4">
@@ -182,14 +184,14 @@ export default function AnnouncementsPage() {
                   {ann.content.replace(/!\[.*?\]\(.*?\)/g, "[图片]").replace(/\n/g, " ")}
                 </p>
                 <p className="text-xs mt-2" style={{ color: "var(--muted)" }}>
-                  {new Date(ann.created_at).toLocaleString("zh-CN")}
+                {new Date(ann.created_at).toLocaleString()}
                 </p>
               </div>
               <div className="flex gap-2 flex-shrink-0">
-                <Button size="sm" variant="secondary" onClick={() => openDetail(ann.id)}>查看已读</Button>
-                <Button size="sm" variant="ghost" onClick={() => handlePushUnread(ann)}>推送未读</Button>
-                <Button size="sm" variant="secondary" onClick={() => handleEdit(ann)}>修改</Button>
-                <Button size="sm" variant="danger" onClick={() => setDeleteId(ann.id)}>删除</Button>
+                <Button size="sm" variant="secondary" onClick={() => openDetail(ann.id)}>{t("announcementsEx.viewReadStatus")}</Button>
+                <Button size="sm" variant="ghost" onClick={() => handlePushUnread(ann)}>{t("announcements.pushUnread")}</Button>
+                <Button size="sm" variant="secondary" onClick={() => handleEdit(ann)}>{t("common.edit")}</Button>
+                <Button size="sm" variant="danger" onClick={() => setDeleteId(ann.id)}>{t("common.delete")}</Button>
               </div>
             </div>
           </Card>
@@ -200,24 +202,24 @@ export default function AnnouncementsPage() {
       <Modal
         open={modalOpen || !!editAnn}
         onClose={() => { setModalOpen(false); setEditAnn(null); setForm({ title: "", content: "", class_id: "", push_threshold_hours: "24" }); }}
-        title={editAnn ? "修改公告" : "发布公告"}
+        title={editAnn ? t("announcementsEx.editTitle") : t("announcements.new")}
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setModalOpen(false); setEditAnn(null); setForm({ title: "", content: "", class_id: "", push_threshold_hours: "24" }); }}>取消</Button>
-            <Button loading={saving} onClick={handleSave}>{editAnn ? "保存" : "发布"}</Button>
+            <Button variant="secondary" onClick={() => { setModalOpen(false); setEditAnn(null); setForm({ title: "", content: "", class_id: "", push_threshold_hours: "24" }); }}>{t("common.cancel")}</Button>
+            <Button loading={saving} onClick={handleSave}>{editAnn ? t("common.save") : t("common.publish")}</Button>
           </>
         }
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>目标班级 *</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>{t("announcementsEx.targetClass")}</label>
             <select
               value={form.class_id}
               onChange={(e) => setForm((f) => ({ ...f, class_id: e.target.value }))}
               className="w-full px-3 py-2.5 rounded-lg text-sm border focus:outline-none"
               style={{ background: "var(--input-bg)", borderColor: "var(--input-border)", color: "var(--foreground)" }}
             >
-              <option value="">-- 选择班级 --</option>
+              <option value="">{t("common.selectClass")}</option>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -240,7 +242,7 @@ export default function AnnouncementsPage() {
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-3.5 h-3.5">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                {uploadingImage ? "上传中…" : "插入图片"}
+              {uploadingImage ? t("common.loading") : t("announcementsEx.insertImage")}
               </label>
             </div>
             <textarea
@@ -260,30 +262,30 @@ export default function AnnouncementsPage() {
       <Modal
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
-        title="确认删除"
+        title={t("common.confirmDeleteTitle")}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDeleteId(null)}>取消</Button>
-            <Button variant="danger" loading={deleting} onClick={handleDelete}>确认删除</Button>
+            <Button variant="secondary" onClick={() => setDeleteId(null)}>{t("common.cancel")}</Button>
+            <Button variant="danger" loading={deleting} onClick={handleDelete}>{t("common.confirmDeleteTitle")}</Button>
           </>
         }
       >
-        <p className="text-sm" style={{ color: "var(--foreground)" }}>确定要删除该公告吗？此操作不可撤销。</p>
+        <p className="text-sm" style={{ color: "var(--foreground)" }}>{t("announcementsEx.confirmDeleteMsg")}</p>
       </Modal>
 
       {/* Read status detail modal */}
       <Modal
         open={!!detailId}
         onClose={() => setDetailId(null)}
-        title={`已读情况 — ${selectedAnn?.title}`}
+        title={`${t("announcementsEx.readStatus")} — ${selectedAnn?.title}`}
       >
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {reads.length === 0 ? (
-            <p className="text-center py-4" style={{ color: "var(--muted)" }}>无学生已读记录</p>
+            <p className="text-center py-4" style={{ color: "var(--muted)" }}>{t("announcementsEx.noReadRecord")}</p>
           ) : reads.map((r) => (
             <div key={r.id} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: "var(--card-border)" }}>
               <span className="text-sm" style={{ color: "var(--foreground)" }}>{r.users?.name}</span>
-              <span className="text-xs" style={{ color: "var(--muted)" }}>{new Date(r.read_at).toLocaleString("zh-CN")}</span>
+              <span className="text-xs" style={{ color: "var(--muted)" }}>{new Date(r.read_at).toLocaleString()}</span>
             </div>
           ))}
         </div>

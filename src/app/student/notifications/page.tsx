@@ -3,14 +3,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui";
 import { useSession } from "next-auth/react";
-
-const TYPE_LABELS: Record<string, string> = {
-  ANNOUNCEMENT_REMINDER: "公告提醒",
-  GRADE_PUBLISHED: "成绩发布",
-  ASSIGNMENT: "作业通知",
-};
+import { useTranslations } from "next-intl";
 
 export default function StudentNotificationsPage() {
+  const t = useTranslations();
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id;
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -46,11 +42,12 @@ export default function StudentNotificationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>消息通知</h2>
+          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("notifications.title")}</h2>
           <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
             {unreadCount > 0
-              ? <span style={{ color: "var(--accent)" }}>{unreadCount} 条未读</span>
-              : "全部已读"}
+              ? <span style={{ color: "var(--accent)" }}>{t("notifications.unreadItems", { count: unreadCount })}</span>
+              : t("notifications.allRead")}
+          </p>
           </p>
         </div>
         {unreadCount > 0 && (
@@ -59,15 +56,15 @@ export default function StudentNotificationsPage() {
             className="text-sm px-3 py-1.5 rounded-lg transition-colors"
             style={{ color: "var(--accent)", border: "1px solid var(--accent)" }}
           >
-            全部标为已读
+            {t("common.markAllRead")}
           </button>
         )}
       </div>
 
       {loading ? (
-        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>加载中...</p></Card>
+        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("common.loading")}</p></Card>
       ) : notifications.length === 0 ? (
-        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>暂无通知</p></Card>
+        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("notifications.noNotifications")}</p></Card>
       ) : (
         <div className="space-y-2">
           {notifications.map((n) => (
@@ -88,14 +85,14 @@ export default function StudentNotificationsPage() {
                       className="text-xs px-1.5 py-0.5 rounded"
                       style={{ background: "var(--background)", color: "var(--muted)", border: "1px solid var(--card-border)" }}
                     >
-                      {TYPE_LABELS[n.type] ?? n.type}
+                      {({ ANNOUNCEMENT_REMINDER: t("notifications.announcementType"), GRADE_PUBLISHED: t("notifications.gradeType"), ASSIGNMENT: t("notifications.assignmentType") } as Record<string,string>)[n.type] ?? n.type}
                     </span>
                     {!n.is_read && (
                       <span
                         className="text-xs px-1.5 py-0.5 rounded font-medium"
                         style={{ background: "var(--accent)", color: "#fff" }}
                       >
-                        新
+                        {t("common.newBadge")}
                       </span>
                     )}
                   </div>

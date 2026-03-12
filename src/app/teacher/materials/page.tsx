@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, Button, Modal, Input, Select, Badge } from "@/components/ui";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 
 const FILE_TYPES: Record<string, string> = {
   "application/pdf": "PDF",
@@ -26,6 +27,7 @@ const typeColors: Record<string, string> = {
 
 export default function MaterialsPage() {
   const { data: session } = useSession();
+  const t = useTranslations();
   const teacherId = (session?.user as any)?.id;
   const [materials, setMaterials] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
@@ -76,7 +78,7 @@ export default function MaterialsPage() {
   };
 
   const handleDelete = async (id: string, fileUrl: string) => {
-    if (!confirm("确认删除？")) return;
+    if (!confirm(t("materialsEx.deleteConfirm"))) return;
     await supabase.from("materials").delete().eq("id", id);
     load();
   };
@@ -92,18 +94,18 @@ export default function MaterialsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>课件管理</h2>
-          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>上传和管理教学课件</p>
+          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("materialsEx.manageTitle")}</h2>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("materialsEx.manageSub")}</p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>+ 上传课件</Button>
+        <Button onClick={() => setModalOpen(true)}>+ {t("materialsEx.uploadTitle")}</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
-          <p style={{ color: "var(--muted)" }}>加载中...</p>
+          <p style={{ color: "var(--muted)" }}>{t("common.loading")}</p>
         ) : materials.length === 0 ? (
           <Card className="col-span-3">
-            <p className="text-center py-8" style={{ color: "var(--muted)" }}>暂无课件</p>
+            <p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("materialsEx.noMaterials")}</p>
           </Card>
         ) : materials.map((m) => (
           <Card key={m.id}>
@@ -124,9 +126,9 @@ export default function MaterialsPage() {
             </div>
             <div className="flex gap-2 mt-3 pt-3 border-t" style={{ borderColor: "var(--card-border)" }}>
               <a href={m.file_url} target="_blank" rel="noopener noreferrer" className="flex-1">
-                <Button size="sm" variant="secondary" className="w-full">下载/预览</Button>
+                <Button size="sm" variant="secondary" className="w-full">{t("materialsEx.downloadPreview")}</Button>
               </a>
-              <Button size="sm" variant="danger" onClick={() => handleDelete(m.id, m.file_url)}>删除</Button>
+              <Button size="sm" variant="danger" onClick={() => handleDelete(m.id, m.file_url)}>{t("common.delete")}</Button>
             </div>
           </Card>
         ))}
@@ -135,23 +137,23 @@ export default function MaterialsPage() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title="上传课件"
+        title={t("materialsEx.uploadTitle")}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>取消</Button>
-            <Button loading={uploading} onClick={handleUpload} disabled={!selectedFile}>上传</Button>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>{t("common.cancel")}</Button>
+            <Button loading={uploading} onClick={handleUpload} disabled={!selectedFile}>{t("common.upload")}</Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Select label="班级 *" value={form.class_id} onChange={(e) => setForm((f) => ({ ...f, class_id: e.target.value }))}>
-            <option value="">-- 选择班级 --</option>
+          <Select label={t("common.class") + " *"} value={form.class_id} onChange={(e) => setForm((f) => ({ ...f, class_id: e.target.value }))}>
+            <option value="">{t("common.selectClass")}</option>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
-          <Input label="科目 *" value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} placeholder="如：数学" />
-          <Input label="课件标题 *" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="请输入课件标题" />
+          <Input label={t("common.subject") + " *"} value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} placeholder={t("common.subjectPlaceholder")} />
+          <Input label={t("materialsEx.materialTitle")} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder={t("materialsEx.titlePlaceholder")} />
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>选择文件 *</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>{t("common.upload")} *</label>
             <input
               ref={fileInputRef}
               type="file"
@@ -160,7 +162,7 @@ export default function MaterialsPage() {
               className="w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:cursor-pointer"
               style={{ color: "var(--foreground)" }}
             />
-            <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>支持 PDF、PPT、Word、MP4、图片等格式</p>
+            <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>{t("materials.fileTypes")}</p>
           </div>
         </div>
       </Modal>

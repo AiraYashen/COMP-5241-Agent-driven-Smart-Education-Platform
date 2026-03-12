@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, Button, Modal, Input, Select, Badge } from "@/components/ui";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 
 interface Assignment {
   id: string;
@@ -18,6 +19,7 @@ interface Assignment {
 
 export default function AssignmentsPage() {
   const { data: session } = useSession();
+  const t = useTranslations();
   const teacherId = (session?.user as any)?.id;
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
@@ -76,17 +78,17 @@ export default function AssignmentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>作业管理</h2>
-          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>布置作业并查看学生提交情况</p>
+          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("assignmentsEx.manageTitle")}</h2>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("assignmentsEx.manageSub")}</p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>+ 布置作业</Button>
+        <Button onClick={() => setModalOpen(true)}>+ {t("dashboard.createAssignment")}</Button>
       </div>
 
       <div className="space-y-3">
         {loading ? (
-          <Card><p className="text-center py-4" style={{ color: "var(--muted)" }}>加载中...</p></Card>
+          <Card><p className="text-center py-4" style={{ color: "var(--muted)" }}>{t("common.loading")}</p></Card>
         ) : assignments.length === 0 ? (
-          <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>暂无作业</p></Card>
+          <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("assignmentsEx.noAssignments")}</p></Card>
         ) : assignments.map((a) => (
           <Card key={a.id}>
             <div className="flex items-start justify-between gap-4">
@@ -95,17 +97,17 @@ export default function AssignmentsPage() {
                   <h3 className="font-semibold" style={{ color: "var(--foreground)" }}>{a.title}</h3>
                   <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>{a.subject}</span>
                   {a.classes && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--background)", color: "var(--muted)" }}>{a.classes.name}</span>}
-                  {a.allow_late && <Badge variant="warning">允许补交</Badge>}
+                  {a.allow_late && <Badge variant="warning">{t("assignmentsEx.allowLate")}</Badge>}
                 </div>
                 {a.description && <p className="text-sm mb-2 line-clamp-2" style={{ color: "var(--muted)" }}>{a.description}</p>}
                 {a.deadline && (
                   <p className="text-xs" style={{ color: isOverdue(a.deadline) ? "#ef4444" : "var(--muted)" }}>
-                    截止：{new Date(a.deadline).toLocaleString("zh-CN")}
-                    {isOverdue(a.deadline) && " （已截止）"}
+                    {t("assignmentsEx.deadlineLabel")}: {new Date(a.deadline).toLocaleString()}
+                    {isOverdue(a.deadline) && " " + t("assignmentsEx.closedSuffix")}
                   </p>
                 )}
               </div>
-              <Button size="sm" variant="secondary" onClick={() => openSubmissions(a)}>查看提交</Button>
+              <Button size="sm" variant="secondary" onClick={() => openSubmissions(a)}>{t("assignmentsEx.viewSubmissions")}</Button>
             </div>
           </Card>
         ))}
@@ -114,36 +116,36 @@ export default function AssignmentsPage() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title="布置作业"
+        title={t("dashboard.createAssignment")}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>取消</Button>
-            <Button loading={saving} onClick={handleSave}>发布</Button>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>{t("common.cancel")}</Button>
+            <Button loading={saving} onClick={handleSave}>{t("assignmentsEx.publishBtn")}</Button>
           </>
         }
       >
         <div className="space-y-3">
-          <Select label="班级 *" value={form.class_id} onChange={(e) => setForm((f) => ({ ...f, class_id: e.target.value }))}>
-            <option value="">-- 选择班级 --</option>
+          <Select label={t("assignmentsEx.clasRequired")} value={form.class_id} onChange={(e) => setForm((f) => ({ ...f, class_id: e.target.value }))}>
+            <option value="">{t("common.selectClass")}</option>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
-          <Input label="科目 *" value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} placeholder="如：数学" />
-          <Input label="标题 *" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="请输入作业标题" />
+          <Input label={t("assignmentsEx.subjectRequired")} value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} placeholder={t("common.subjectPlaceholder")} />
+          <Input label={t("assignmentsEx.titleRequired")} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder={t("assignmentsEx.titlePlaceholder")} />
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>作业说明</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>{t("assignmentsEx.descriptionLabel")}</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               rows={3}
-              placeholder="详细描述（可选）"
+              placeholder={t("assignmentsEx.descriptionPlaceholder")}
               className="w-full px-3 py-2.5 rounded-lg text-sm border focus:outline-none resize-none"
               style={{ background: "var(--input-bg)", borderColor: "var(--input-border)", color: "var(--foreground)" }}
             />
           </div>
-          <Input label="截止时间" type="datetime-local" value={form.deadline} onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))} />
+          <Input label={t("assignmentsEx.deadlineLabel")} type="datetime-local" value={form.deadline} onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))} />
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.allow_late} onChange={(e) => setForm((f) => ({ ...f, allow_late: e.target.checked }))} className="w-4 h-4" />
-            <span className="text-sm" style={{ color: "var(--foreground)" }}>允许截止后补交</span>
+            <span className="text-sm" style={{ color: "var(--foreground)" }}>{t("assignmentsEx.allowLateLabel")}</span>
           </label>
         </div>
       </Modal>
@@ -151,11 +153,11 @@ export default function AssignmentsPage() {
       <Modal
         open={!!submissionsModal}
         onClose={() => setSubmissionsModal(null)}
-        title={`提交情况 — ${submissionsModal?.title}`}
+        title={`${t("assignmentsEx.submissionStatus")} — ${submissionsModal?.title}`}
       >
         <div className="space-y-2 max-h-80 overflow-y-auto">
           {submissions.length === 0 ? (
-            <p className="text-center py-4" style={{ color: "var(--muted)" }}>暂无学生提交</p>
+            <p className="text-center py-4" style={{ color: "var(--muted)" }}>{t("assignmentsEx.noStudentSubmissions")}</p>
           ) : submissions.map((s) => (
             <div key={s.id} className="py-2 border-b last:border-0" style={{ borderColor: "var(--card-border)" }}>
               <div className="flex items-center justify-between">
@@ -164,7 +166,7 @@ export default function AssignmentsPage() {
                   {s.content && <p className="text-xs mt-0.5 line-clamp-1" style={{ color: "var(--muted)" }}>{s.content}</p>}
                   {s.file_url && (
                     <a href={s.file_url} target="_blank" rel="noopener noreferrer" className="text-xs mt-0.5 inline-block" style={{ color: "var(--accent)" }}>
-                      查看附件
+                      {t("assignmentsEx.viewUploadedFile")}
                     </a>
                   )}
                 </div>
@@ -172,9 +174,9 @@ export default function AssignmentsPage() {
                   {s.score != null ? (
                     <span className="text-sm font-bold" style={{ color: "var(--accent)" }}>{s.score}分</span>
                   ) : (
-                    <Badge variant="warning">待批改</Badge>
+                    <Badge variant="warning">{t("assignmentsEx.pendingReview")}</Badge>
                   )}
-                  <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{new Date(s.submitted_at).toLocaleDateString("zh-CN")}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{new Date(s.submitted_at).toLocaleDateString()}</p>
                 </div>
               </div>
             </div>

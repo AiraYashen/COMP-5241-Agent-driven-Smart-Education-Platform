@@ -1,8 +1,10 @@
 import { createAdminClient } from "@/lib/supabase";
 import { Card } from "@/components/ui";
+import { getTranslations } from "next-intl/server";
 
 export default async function AdminDashboard() {
   const db = createAdminClient();
+  const t = await getTranslations();
   const [
     { count: schoolsCount },
     { count: classesCount },
@@ -14,16 +16,16 @@ export default async function AdminDashboard() {
   ]);
 
   const stats = [
-    { label: "学校数量", value: schoolsCount ?? 0, color: "var(--accent)" },
-    { label: "班级数量", value: classesCount ?? 0, color: "#3b82f6" },
-    { label: "用户总数", value: usersCount ?? 0, color: "#10b981" },
+    { label: t("adminEx.schoolCount"), value: schoolsCount ?? 0, color: "var(--accent)" },
+    { label: t("adminEx.classCount"), value: classesCount ?? 0, color: "#3b82f6" },
+    { label: t("adminEx.userCount"), value: usersCount ?? 0, color: "#10b981" },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold mb-1" style={{ color: "var(--foreground)" }}>管理后台</h2>
-        <p className="text-sm" style={{ color: "var(--muted)" }}>系统概览与数据统计</p>
+        <h2 className="text-xl font-semibold mb-1" style={{ color: "var(--foreground)" }}>{t("admin.title")}</h2>
+        <p className="text-sm" style={{ color: "var(--muted)" }}>{t("adminEx.overview")}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -40,13 +42,13 @@ export default async function AdminDashboard() {
       </div>
 
       <Card>
-        <h3 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>快捷操作</h3>
+        <h3 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>{t("common.quickActions")}</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { href: "/admin/schools", label: "添加学校" },
-            { href: "/admin/classes", label: "添加班级" },
-            { href: "/admin/users", label: "添加用户" },
-            { href: "/admin/schedule", label: "配置课表" },
+            { href: "/admin/schools", label: t("admin.addSchool") },
+            { href: "/admin/classes", label: t("admin.addClass") },
+            { href: "/admin/users", label: t("admin.addUser") },
+            { href: "/admin/schedule", label: t("admin.scheduleManage") },
           ].map((action) => (
             <a
               key={action.href}

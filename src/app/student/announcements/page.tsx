@@ -4,8 +4,10 @@ import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui";
 import { useSession } from "next-auth/react";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import { useTranslations } from "next-intl";
 
 export default function StudentAnnouncementsPage() {
+  const t = useTranslations();
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id;
   const [announcements, setAnnouncements] = useState<any[]>([]);
@@ -53,16 +55,16 @@ export default function StudentAnnouncementsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>公告通知</h2>
+        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("announcementsEx.studentTitle")}</h2>
         <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
-          {unreadCount > 0 ? <span style={{ color: "var(--accent)" }}>{unreadCount} 条未读</span> : "全部已读"}
+          {unreadCount > 0 ? <span style={{ color: "var(--accent)" }}>{t("announcementsEx.unreadItems", { count: unreadCount })}</span> : t("announcementsEx.allRead")}
         </p>
       </div>
 
       {loading ? (
-        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>加载中...</p></Card>
+        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("common.loading")}</p></Card>
       ) : announcements.length === 0 ? (
-        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>暂无公告</p></Card>
+        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("announcementsEx.noAnnouncements")}</p></Card>
       ) : (
         <div className="space-y-3">
           {announcements.map((a) => (
@@ -77,7 +79,7 @@ export default function StudentAnnouncementsPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{a.title}</span>
                       {!a.isRead && (
-                        <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: "var(--accent)", color: "#fff" }}>新</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: "var(--accent)", color: "#fff" }}>{t("common.newBadge")}</span>
                       )}
                     </div>
                     <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>

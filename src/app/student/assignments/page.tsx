@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, Button, Modal } from "@/components/ui";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 
 export default function StudentAssignmentsPage() {
+  const t = useTranslations();
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id;
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -147,49 +149,49 @@ export default function StudentAssignmentsPage() {
               <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{a.title}</div>
               {isQuiz && (
                 <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
-                  选择题 {quizQCount} 题
+                  {t("assignmentsEx.multipleChoice")} {quizQCount} {t("assignmentsEx.questionsUnit")}
                 </span>
               )}
             </div>
             {!isQuiz && a.description && <div className="text-xs mt-0.5 line-clamp-1" style={{ color: "var(--muted)" }}>{a.description}</div>}
-            <div className="text-xs mt-1" style={{ color: "var(--muted)" }}>截止 {deadline.toLocaleDateString("zh-CN")} {deadline.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</div>
+            <div className="text-xs mt-1" style={{ color: "var(--muted)" }}>{t("assignments.deadline")} {deadline.toLocaleDateString()} {deadline.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
           </div>
           <div className="flex gap-2 flex-shrink-0">
             {showStatus === "pending" && (
               isQuiz
-                ? <Button size="sm" onClick={() => { setQuizAnswers({}); setQuizAssignment(a); }}>答题</Button>
-                : <Button size="sm" onClick={() => setSelected(a)}>提交</Button>
+                ? <Button size="sm" onClick={() => { setQuizAnswers({}); setQuizAssignment(a); }}>{t("assignmentsEx.view")}</Button>
+                : <Button size="sm" onClick={() => setSelected(a)}>{t("common.submit")}</Button>
             )}
             {showStatus === "submitted" && (
               <>
-                <Button size="sm" variant="secondary" onClick={() => setViewSub(a)}>查看</Button>
+                <Button size="sm" variant="secondary" onClick={() => setViewSub(a)}>{t("assignmentsEx.view")}</Button>
                 {isQuiz
                   ? <Button size="sm" variant="ghost" onClick={() => {
                       const prev = (() => { try { return JSON.parse(a.submission?.content ?? "{}"); } catch { return {}; } })();
                       setQuizAnswers(prev);
                       setQuizAssignment(a);
-                    }}>重新作答</Button>
+                    }}>{t("assignmentsEx.redo")}</Button>
                   : <Button size="sm" variant="ghost" onClick={() => {
                       setSelected(a);
                       setSubmitText(a.submission?.content ?? "");
                       setExistingFileUrl(a.submission?.file_url ?? null);
-                    }}>编辑</Button>
+                    }}>{t("common.edit")}</Button>
                 }
               </>
             )}
             {showStatus === "overdue" && (
               isQuiz
-                ? <Button size="sm" variant="danger" onClick={() => { setQuizAnswers({}); setQuizAssignment(a); }}>补答</Button>
-                : <Button size="sm" variant="danger" onClick={() => setSelected(a)}>补交</Button>
+                ? <Button size="sm" variant="danger" onClick={() => { setQuizAnswers({}); setQuizAssignment(a); }}>{t("assignmentsEx.lateSubmit")}</Button>
+                : <Button size="sm" variant="danger" onClick={() => setSelected(a)}>{t("assignmentsEx.resubmit")}</Button>
             )}
           </div>
         </div>
         {a.submission?.score != null && (
           <div className="mt-2 flex items-center gap-2">
             <span className="text-lg font-bold" style={{ color: a.submission.score >= 90 ? "#22c55e" : a.submission.score >= 60 ? "var(--accent)" : "#ef4444" }}>
-              {a.submission.score}分
+              {a.submission.score}
             </span>
-            {isLate && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#fef3c7", color: "#d97706" }}>迟交</span>}
+            {isLate && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#fef3c7", color: "#d97706" }}>{t("common.late")}</span>}
           </div>
         )}
       </div>
@@ -199,64 +201,64 @@ export default function StudentAssignmentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>我的作业</h2>
-        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>待交 {pending.length} · 已交 {submitted.length} · 逾期 {overdue.length}</p>
+        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("assignmentsEx.myTitle")}</h2>
+        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("assignmentsEx.pendingTab")} {pending.length} · {t("assignmentsEx.submittedTab")} {submitted.length} · {t("assignmentsEx.overdueTab")} {overdue.length}</p>
       </div>
 
       {loading ? (
-        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>加载中...</p></Card>
+        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("common.loading")}</p></Card>
       ) : (
         <div className="space-y-6">
           {pending.length > 0 && (
             <Card>
-              <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--accent)" }}>待提交</h3>
+              <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--accent)" }}>{t("assignmentsEx.pendingTab")}</h3>
               <div className="space-y-2">{pending.map((a) => <AssignmentCard key={a.id} a={a} showStatus="pending" />)}</div>
             </Card>
           )}
           {submitted.length > 0 && (
             <Card>
-              <h3 className="text-sm font-semibold mb-3" style={{ color: "#22c55e" }}>已提交</h3>
+              <h3 className="text-sm font-semibold mb-3" style={{ color: "#22c55e" }}>{t("assignmentsEx.submittedTab")}</h3>
               <div className="space-y-2">{submitted.map((a) => <AssignmentCard key={a.id} a={a} showStatus="submitted" />)}</div>
             </Card>
           )}
           {overdue.length > 0 && (
             <Card>
-              <h3 className="text-sm font-semibold mb-3" style={{ color: "#ef4444" }}>已逾期</h3>
+              <h3 className="text-sm font-semibold mb-3" style={{ color: "#ef4444" }}>{t("common.overdue")}</h3>
               <div className="space-y-2">{overdue.map((a) => <AssignmentCard key={a.id} a={a} showStatus="overdue" />)}</div>
             </Card>
           )}
           {assignments.length === 0 && (
-            <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>暂无作业</p></Card>
+            <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("assignmentsEx.noAssignments")}</p></Card>
           )}
         </div>
       )}
 
       {/* Submit / Edit modal */}
-      <Modal open={!!selected} onClose={() => { setSelected(null); setSubmitText(""); setSubmitFile(null); setExistingFileUrl(null); }} title={(selected?.submission ? "编辑作业：" : "提交作业：") + (selected?.title ?? "")}>
+      <Modal open={!!selected} onClose={() => { setSelected(null); setSubmitText(""); setSubmitFile(null); setExistingFileUrl(null); }} title={(selected?.submission ? t("common.edit") + ": " : t("assignmentsEx.submitAssignment") + ": ") + (selected?.title ?? "")}>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>文字回答</label>
+            <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>{t("assignmentsEx.textAnswer")}</label>
             <textarea
               value={submitText}
               onChange={(e) => setSubmitText(e.target.value)}
               rows={5}
-              placeholder="输入你的作答..."
+              placeholder={t("assignmentsEx.answerPlaceholder")}
               className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none resize-none"
               style={{ background: "var(--background)", borderColor: "var(--card-border)", color: "var(--foreground)" }}
             />
           </div>
           <div>
-            <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>附件（可选）</label>
+            <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>{t("assignmentsEx.attachmentOptional")}</label>
             {existingFileUrl && !submitFile && (
               <div className="mb-2 flex items-center gap-2">
-                <span className="text-xs" style={{ color: "var(--muted)" }}>已上传附件：</span>
-                <a href={existingFileUrl} target="_blank" rel="noopener noreferrer" className="text-xs truncate max-w-xs" style={{ color: "var(--accent)" }}>查看已上传文件</a>
+                <span className="text-xs" style={{ color: "var(--muted)" }}>{t("assignmentsEx.uploadedAttachment")}</span>
+                <a href={existingFileUrl} target="_blank" rel="noopener noreferrer" className="text-xs truncate max-w-xs" style={{ color: "var(--accent)" }}>{t("assignmentsEx.viewUploadedFile")}</a>
               </div>
             )}
             <input type="file" onChange={(e) => setSubmitFile(e.target.files?.[0] ?? null)} className="text-sm" style={{ color: "var(--foreground)" }} />
-            {submitFile && <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>已选: {submitFile.name}（将替换原附件）</p>}
+            {submitFile && <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>{submitFile.name} — {t("assignmentsEx.replaceAttachment")}</p>}
           </div>
-          <Button onClick={handleSubmit} loading={submitting} disabled={!submitText.trim() && !submitFile && !existingFileUrl} className="w-full">{selected?.submission ? "保存修改" : "提交作业"}</Button>
+          <Button onClick={handleSubmit} loading={submitting} disabled={!submitText.trim() && !submitFile && !existingFileUrl} className="w-full">{selected?.submission ? t("assignmentsEx.saveChanges") : t("assignmentsEx.submitAssignment")}</Button>
         </div>
       </Modal>
 
@@ -272,11 +274,11 @@ export default function StudentAssignmentsPage() {
             return (
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm" style={{ color: "var(--muted)" }}>提交时间:</span>
-                  <span className="text-sm" style={{ color: "var(--foreground)" }}>{new Date(viewSub.submission.submitted_at).toLocaleString("zh-CN")}</span>
+                  <span className="text-sm" style={{ color: "var(--muted)" }}>{t("assignmentsEx.submitTime")}</span>
+                  <span className="text-sm" style={{ color: "var(--foreground)" }}>{new Date(viewSub.submission.submitted_at).toLocaleString()}</span>
                   {viewSub.submission.score != null && (
                     <span className="ml-auto text-xl font-bold" style={{ color: viewSub.submission.score >= 90 ? "#22c55e" : viewSub.submission.score >= 60 ? "var(--accent)" : "#ef4444" }}>
-                      {viewSub.submission.score}分
+                      {viewSub.submission.score}
                     </span>
                   )}
                 </div>
@@ -303,7 +305,7 @@ export default function StudentAssignmentsPage() {
                             );
                           })}
                         </div>
-                        {q.explanation && <p className="text-xs mt-2 px-2" style={{ color: "var(--muted)" }}>解析：{q.explanation}</p>}
+                        {q.explanation && <p className="text-xs mt-2 px-2" style={{ color: "var(--muted)" }}>{t("assignmentsEx.explanation")} {q.explanation}</p>}
                       </div>
                     );
                   })}
@@ -314,12 +316,12 @@ export default function StudentAssignmentsPage() {
           return (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <span className="text-sm" style={{ color: "var(--muted)" }}>提交时间:</span>
-                <span className="text-sm" style={{ color: "var(--foreground)" }}>{new Date(viewSub.submission.submitted_at).toLocaleString("zh-CN")}</span>
+                <span className="text-sm" style={{ color: "var(--muted)" }}>{t("assignmentsEx.submitTime")}</span>
+                <span className="text-sm" style={{ color: "var(--foreground)" }}>{new Date(viewSub.submission.submitted_at).toLocaleString()}</span>
               </div>
               {viewSub.submission.content && (
                 <div>
-                  <p className="text-sm mb-1" style={{ color: "var(--muted)" }}>我的回答:</p>
+                  <p className="text-sm mb-1" style={{ color: "var(--muted)" }}>{t("assignmentsEx.myAnswer")}</p>
                   <p className="text-sm p-3 rounded-lg" style={{ background: "var(--background)", color: "var(--foreground)" }}>{viewSub.submission.content}</p>
                 </div>
               )}
@@ -334,7 +336,7 @@ export default function StudentAssignmentsPage() {
               )}
               {viewSub.submission.feedback && (
                 <div>
-                  <p className="text-sm mb-1" style={{ color: "var(--muted)" }}>老师评语:</p>
+                  <p className="text-sm mb-1" style={{ color: "var(--muted)" }}>{t("assignmentsEx.teacherComment")}</p>
                   <p className="text-sm p-3 rounded-lg" style={{ background: "var(--background)", color: "var(--foreground)" }}>{viewSub.submission.feedback}</p>
                 </div>
               )}
@@ -350,13 +352,13 @@ export default function StudentAssignmentsPage() {
         title={quizAssignment?.title ?? ""}
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setQuizAssignment(null); setQuizAnswers({}); }}>取消</Button>
+            <Button variant="secondary" onClick={() => { setQuizAssignment(null); setQuizAnswers({}); }}>{t("common.cancel")}</Button>
             <Button
               loading={quizSubmitting}
               onClick={handleSubmitQuiz}
               disabled={quizAssignment ? parseQuizQuestions(quizAssignment.description).some((q: any) => !quizAnswers[q.id]) : true}
             >
-              提交答案
+              {t("assignmentsEx.submitAssignment")}
             </Button>
           </>
         }
@@ -366,7 +368,7 @@ export default function StudentAssignmentsPage() {
           const answered = questions.filter((q: any) => quizAnswers[q.id]).length;
           return (
             <div className="space-y-5">
-              <p className="text-xs" style={{ color: "var(--muted)" }}>共 {questions.length} 题 · 已答 {answered} 题</p>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>{t("assignmentsEx.totalLabel")} {questions.length} {t("assignmentsEx.questionsUnit")} · {t("assignmentsEx.answered")} {answered} {t("assignmentsEx.questionsUnit")}</p>
               <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
                 {questions.map((q: any, qi: number) => (
                   <div key={q.id}>

@@ -1,8 +1,7 @@
 import { auth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase";
 import { Card } from "@/components/ui";
-
-const weekDays = ["", "周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+import { getTranslations, getMessages } from "next-intl/server";
 
 interface Schedule {
   id: string;
@@ -18,6 +17,10 @@ export default async function TeacherSchedulePage() {
   const session = await auth();
   const teacherId = (session?.user as any)?.id;
   const db = createAdminClient();
+  const t = await getTranslations();
+  const messages = await getMessages();
+  const wd = ((messages as any).schedule?.weekDays ?? ["周一","周二","周三","周四","周五","周六","周日"]) as string[];
+  const weekDays = ["", wd[0], wd[1], wd[2], wd[3], wd[4], wd[5] ?? "周六", wd[6] ?? "周日"];
 
   const { data: schedules } = await db
     .from("schedules")
@@ -45,8 +48,8 @@ export default async function TeacherSchedulePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>我的课表</h2>
-        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>本学期排班安排</p>
+        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("scheduleEx.mySchedule")}</h2>
+        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("scheduleEx.termSchedule")}</p>
       </div>
 
       <Card>
@@ -61,7 +64,7 @@ export default async function TeacherSchedulePage() {
               </div>
               <div className="space-y-2">
                 {grouped[day].length === 0 ? (
-                  <div className="text-xs text-center py-4 rounded-lg border border-dashed" style={{ color: "var(--muted)", borderColor: "var(--card-border)" }}>暂无课程</div>
+                  <div className="text-xs text-center py-4 rounded-lg border border-dashed" style={{ color: "var(--muted)", borderColor: "var(--card-border)" }}>{t("schedule.noClass")}</div>
                 ) : (
                   grouped[day].map((s) => (
                     <div

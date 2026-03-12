@@ -1,11 +1,13 @@
 import { auth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase";
 import { Card } from "@/components/ui";
+import { getTranslations } from "next-intl/server";
 
 export default async function TeacherDashboard() {
   const session = await auth();
   const teacherId = (session?.user as any)?.id;
   const db = createAdminClient();
+  const t = await getTranslations();
 
   const [
     { count: assignmentsCount },
@@ -21,16 +23,16 @@ export default async function TeacherDashboard() {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>
-          你好，{session?.user?.name}
+          {t("dashboard.welcome")}，{session?.user?.name}
         </h2>
-        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>以下是你的工作台概览</p>
+        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("dashboard.workbenchOverview")}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {[
-          { label: "已布置作业", value: assignmentsCount ?? 0, color: "var(--accent)" },
-          { label: "已发布公告", value: announcementsCount ?? 0, color: "#3b82f6" },
-          { label: "最近提交", value: recentSubmissions?.length ?? 0, color: "#10b981" },
+          { label: t("dashboard.assignmentsSet"), value: assignmentsCount ?? 0, color: "var(--accent)" },
+          { label: t("dashboard.announcementsPublished"), value: announcementsCount ?? 0, color: "#3b82f6" },
+          { label: t("dashboard.recentSubmissions"), value: recentSubmissions?.length ?? 0, color: "#10b981" },
         ].map((stat) => (
           <Card key={stat.label}>
             <div className="flex items-center justify-between">
@@ -45,7 +47,7 @@ export default async function TeacherDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <h3 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>最新作业提交</h3>
+          <h3 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("dashboard.latestSubmissions")}</h3>
           {recentSubmissions && recentSubmissions.length > 0 ? (
             <div className="space-y-2">
               {recentSubmissions.map((s: any) => (
@@ -55,24 +57,24 @@ export default async function TeacherDashboard() {
                     <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{s.assignments?.title}</p>
                   </div>
                   <span className="text-xs" style={{ color: "var(--muted)" }}>
-                    {new Date(s.submitted_at).toLocaleDateString("zh-CN")}
+                    {new Date(s.submitted_at).toLocaleDateString()}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm" style={{ color: "var(--muted)" }}>暂无提交</p>
+            <p className="text-sm" style={{ color: "var(--muted)" }}>{t("dashboard.noSubmissions")}</p>
           )}
         </Card>
 
         <Card>
-          <h3 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>快捷操作</h3>
+          <h3 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("common.quickActions")}</h3>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { href: "/teacher/assignments", label: "布置作业" },
-              { href: "/teacher/announcements", label: "发布公告" },
-              { href: "/teacher/grading", label: "自动改题" },
-              { href: "/teacher/ai-preview", label: "生成预习" },
+              { href: "/teacher/assignments", label: t("dashboard.createAssignment") },
+              { href: "/teacher/announcements", label: t("dashboard.publishAnnouncement") },
+              { href: "/teacher/grading", label: t("dashboard.autoGrade") },
+              { href: "/teacher/ai-preview", label: t("dashboard.generatePreview") },
             ].map((a) => (
               <a
                 key={a.href}

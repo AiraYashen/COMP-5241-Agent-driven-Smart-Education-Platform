@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 
 const TYPE_COLORS: Record<string, string> = {
   PDF: "#ef4444", PPT: "#f97316", PPTX: "#f97316",
@@ -12,6 +13,7 @@ const TYPE_COLORS: Record<string, string> = {
 const typeOf = (t: string) => TYPE_COLORS[t.toUpperCase()] ?? "#6b7280";
 
 export default function StudentMaterialsPage() {
+  const t = useTranslations();
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id;
   const [materials, setMaterials] = useState<any[]>([]);
@@ -52,34 +54,34 @@ export default function StudentMaterialsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>学习资料</h2>
-        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>老师上传的课件和资料</p>
+        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("materialsEx.learningTitle")}</h2>
+        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("materialsEx.learningSubtitle")}</p>
       </div>
 
       {/* Filter tabs */}
       {types.length > 1 && (
         <div className="flex gap-2 flex-wrap">
-          {types.map((t) => (
+          {types.map((tp) => (
             <button
-              key={t}
-              onClick={() => setFilter(t)}
+              key={tp}
+              onClick={() => setFilter(tp)}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
               style={{
-                background: filter === t ? "var(--accent)" : "var(--card)",
-                color: filter === t ? "#fff" : "var(--muted)",
-                border: `1px solid ${filter === t ? "var(--accent)" : "var(--card-border)"}`,
+                background: filter === tp ? "var(--accent)" : "var(--card)",
+                color: filter === tp ? "#fff" : "var(--muted)",
+                border: `1px solid ${filter === tp ? "var(--accent)" : "var(--card-border)"}`,
               }}
             >
-              {t === "ALL" ? "全部" : t}
+              {tp === "ALL" ? t("materialsEx.all") : tp}
             </button>
           ))}
         </div>
       )}
 
       {loading ? (
-        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>加载中...</p></Card>
+        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("common.loading")}</p></Card>
       ) : filtered.length === 0 ? (
-        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>暂无资料</p></Card>
+        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("materialsEx.noMaterials")}</p></Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((m) => (

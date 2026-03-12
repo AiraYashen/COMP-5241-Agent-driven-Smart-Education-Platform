@@ -3,12 +3,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from "recharts";
 
 export default function StudentAnalyticsPage() {
+  const t = useTranslations();
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id;
   const [grades, setGrades] = useState<any[]>([]);
@@ -76,20 +78,20 @@ export default function StudentAnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>学习报告</h2>
-        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>查看你的学习数据和成绩分析</p>
+        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("analyticsEx.reportTitle")}</h2>
+        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("analyticsEx.reportSub")}</p>
       </div>
 
       {loading ? (
-        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>加载中...</p></Card>
+        <Card><p className="text-center py-8" style={{ color: "var(--muted)" }}>{t("common.loading")}</p></Card>
       ) : (
         <>
           {/* Summary stats */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: "近14天学习时长", value: totalStudyMins > 0 ? `${totalStudyMins}分钟` : "—", color: "var(--accent)" },
-              { label: "综合平均分", value: avgScore !== null ? `${avgScore}分` : "—", color: avgScore && avgScore >= 90 ? "#22c55e" : "var(--accent)" },
-              { label: "累计错题数", value: wrongTotal > 0 ? `${wrongTotal}题` : "—", color: wrongTotal > 10 ? "#ef4444" : "#f59e0b" },
+              { label: t("analyticsEx.last14Days"), value: totalStudyMins > 0 ? `${totalStudyMins}${t("analytics.minutes")}` : "—", color: "var(--accent)" },
+              { label: t("analyticsEx.overallAverage"), value: avgScore !== null ? `${avgScore}` : "—", color: avgScore && avgScore >= 90 ? "#22c55e" : "var(--accent)" },
+              { label: t("analyticsEx.totalMistakes"), value: wrongTotal > 0 ? `${wrongTotal}` : "—", color: wrongTotal > 10 ? "#ef4444" : "#f59e0b" },
             ].map((s) => (
               <Card key={s.label} className="text-center">
                 <div className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</div>
@@ -101,16 +103,16 @@ export default function StudentAnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Radar */}
             <Card>
-              <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>各科成绩雷达图</h3>
+              <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("analytics.radar")}</h3>
               {grades.length === 0 ? (
-                <p className="text-sm text-center py-6" style={{ color: "var(--muted)" }}>暂无成绩数据</p>
+                <p className="text-sm text-center py-6" style={{ color: "var(--muted)" }}>{t("analyticsEx.noGradesData")}</p>
               ) : (
                 <ResponsiveContainer width="100%" height={240}>
                   <RadarChart data={grades}>
                     <PolarGrid stroke="var(--card-border)" />
                     <PolarAngleAxis dataKey="subject" tick={{ fill: "var(--muted)", fontSize: 12 }} />
                     <PolarRadiusAxis domain={[0, 100]} tick={{ fill: "var(--muted)", fontSize: 10 }} />
-                    <Radar name="平均分" dataKey="score" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.2} />
+                    <Radar name={t("gradesEx.average")} dataKey="score" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.2} />
                     <Tooltip contentStyle={tooltipStyle} />
                   </RadarChart>
                 </ResponsiveContainer>
@@ -119,9 +121,9 @@ export default function StudentAnalyticsPage() {
 
             {/* Study time bar */}
             <Card>
-              <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>近14天学习时长</h3>
+              <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("analyticsEx.last14Days")}</h3>
               {viewData.every((d) => d.minutes === 0) ? (
-                <p className="text-sm text-center py-6" style={{ color: "var(--muted)" }}>暂无学习记录</p>
+                <p className="text-sm text-center py-6" style={{ color: "var(--muted)" }}>{t("analyticsEx.noStudyRecords")}</p>
               ) : (
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={viewData} margin={{ left: -20 }}>
@@ -129,7 +131,7 @@ export default function StudentAnalyticsPage() {
                     <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 10 }} interval={1} />
                     <YAxis tick={{ fill: "var(--muted)", fontSize: 10 }} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="minutes" fill="var(--accent)" radius={[4, 4, 0, 0]} name="分钟" />
+                    <Bar dataKey="minutes" fill="var(--accent)" radius={[4, 4, 0, 0]} name={t("analytics.minutes")} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -138,14 +140,14 @@ export default function StudentAnalyticsPage() {
             {/* Wrong questions */}
             {wrongData.length > 0 && (
               <Card className="lg:col-span-2">
-                <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>易错知识点</h3>
+                <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("analyticsEx.commonMistakes")}</h3>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={wrongData} layout="vertical" margin={{ left: 20, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" horizontal={false} />
                     <XAxis type="number" tick={{ fill: "var(--muted)", fontSize: 10 }} />
                     <YAxis dataKey="point" type="category" tick={{ fill: "var(--muted)", fontSize: 11 }} width={80} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} name="错误次数" />
+                    <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} name={t("analyticsEx.mistakeCount")} />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>

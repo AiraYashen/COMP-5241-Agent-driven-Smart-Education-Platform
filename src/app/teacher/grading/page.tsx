@@ -1,8 +1,10 @@
 "use client";
 import { useState } from "react";
 import { Card, Button } from "@/components/ui";
+import { useTranslations } from "next-intl";
 
 export default function GradingPage() {
+  const t = useTranslations();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,7 +36,7 @@ export default function GradingPage() {
       const data = await res.json();
       setResult(data);
     } catch {
-      setError("AI判分失败，请重试");
+      setError(t("gradingEx.gradingFailed"));
     } finally {
       setLoading(false);
     }
@@ -43,13 +45,13 @@ export default function GradingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>自动改题</h2>
-        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>上传作业图片，AI自动判分并给出评语</p>
+        <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("grading.title")}</h2>
+        <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("gradingEx.manageSub")}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <h3 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>上传作业图片</h3>
+          <h3 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("gradingEx.uploadLabel")}</h3>
           <label
             className="flex flex-col items-center justify-center border-2 border-dashed rounded-xl cursor-pointer transition-all h-48"
             style={{ borderColor: "var(--card-border)", background: "var(--background)" }}
@@ -63,8 +65,8 @@ export default function GradingPage() {
                 <svg className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--muted)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>点击上传或拖拽图片</p>
-                <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>支持 JPG、PNG、HEIC 等格式</p>
+                <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{t("gradingEx.dragHint")}</p>
+                <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>JPG / PNG / HEIC</p>
               </div>
             )}
             <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
@@ -75,16 +77,16 @@ export default function GradingPage() {
             disabled={!imageFile}
             onClick={handleGrade}
           >
-            {loading ? "AI判分中..." : "开始判分"}
+            {loading ? t("grading.analyzing") : t("gradingEx.startGrading")}
           </Button>
           {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
         </Card>
 
         <Card>
-          <h3 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>判分结果</h3>
+          <h3 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("grading.result")}</h3>
           {!result ? (
             <div className="flex items-center justify-center h-48 rounded-xl border-2 border-dashed" style={{ borderColor: "var(--card-border)" }}>
-              <p className="text-sm" style={{ color: "var(--muted)" }}>等待判分结果...</p>
+              <p className="text-sm" style={{ color: "var(--muted)" }}>{t("gradingEx.waitResult")}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -98,17 +100,17 @@ export default function GradingPage() {
                     <span className="text-lg ml-1">/ {result.total}</span>
                   </div>
                   <div className="text-xs mt-1 font-medium" style={{ color: "var(--accent)" }}>
-                    得分率 {Math.round((result.score / result.total) * 100)}%
+                    {t("gradingEx.scoreRate")} {Math.round((result.score / result.total) * 100)}%
                   </div>
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>综合评语</p>
+                <p className="text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>{t("gradingEx.overallComment")}</p>
                 <p className="text-sm" style={{ color: "var(--muted)" }}>{result.comments}</p>
               </div>
               {result.details && result.details.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>逐题分析</p>
+                  <p className="text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>{t("gradingEx.questionAnalysis")}</p>
                   <ul className="space-y-1">
                     {result.details.map((d, i) => (
                       <li key={i} className="text-sm" style={{ color: "var(--muted)" }}>• {d}</li>

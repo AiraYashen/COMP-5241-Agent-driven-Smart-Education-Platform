@@ -2,16 +2,18 @@ import { auth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase";
 import { Card } from "@/components/ui";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 export default async function StudentDashboard() {
   const session = await auth();
   const userId = (session?.user as any)?.id;
   const sb = createAdminClient();
+  const t = await getTranslations();
 
   // Get student's class
   const { data: enrollment } = await sb.from("enrollments").select("class_id, classes(name)").eq("student_id", userId).single();
   const classId = enrollment?.class_id;
-  const className = (enrollment?.classes as any)?.name ?? "未分配班级";
+  const className = (enrollment?.classes as any)?.name ?? t("dashboard.noClass");
 
   // Today's schedule
   const weekday = new Date().getDay(); // 0=Sun
@@ -47,16 +49,16 @@ export default async function StudentDashboard() {
   const { data: grades } = await sb.from("grades").select("subject, score, created_at").eq("student_id", userId).order("created_at", { ascending: false }).limit(3);
 
   const stats = [
-    { label: "未读公告", value: unreadCount, href: "/student/announcements", color: unreadCount > 0 ? "var(--accent)" : "var(--muted)" },
-    { label: "待交作业", value: pending.length, href: "/student/assignments", color: pending.length > 0 ? "#f59e0b" : "var(--muted)" },
-    { label: "今日课程", value: (todaySchedule ?? []).length, href: "/student/schedule", color: "#22c55e" },
+    { label: t("dashboard.unreadAnnouncements"), value: unreadCount, href: "/student/announcements", color: unreadCount > 0 ? "var(--accent)" : "var(--muted)" },
+    { label: t("dashboard.pendingAssignments"), value: pending.length, href: "/student/assignments", color: pending.length > 0 ? "#f59e0b" : "var(--muted)" },
+    { label: t("dashboard.todaySchedule"), value: (todaySchedule ?? []).length, href: "/student/schedule", color: "#22c55e" },
   ];
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>
-          你好，{session?.user?.name ?? "同学"}
+          {t("dashboard.welcome")}，{session?.user?.name ?? t("common.schoolmate")}
         </h2>
         <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{className} · {new Date().toLocaleDateString("zh-CN", { weekday: "long", month: "long", day: "numeric" })}</p>
       </div>
@@ -76,9 +78,9 @@ export default async function StudentDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Today's schedule */}
         <Card>
-          <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>今日课程</h3>
+          <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("dashboard.todaySchedule")}</h3>
           {(todaySchedule ?? []).length === 0 ? (
-            <p className="text-sm text-center py-4" style={{ color: "var(--muted)" }}>今天没有课，好好休息</p>
+            <p className="text-sm text-center py-4" style={{ color: "var(--muted)" }}>{t("dashboard.noClassToday")}</p>
           ) : (
             <div className="space-y-2">
               {(todaySchedule ?? []).map((s: any, i: number) => (
@@ -99,11 +101,11 @@ export default async function StudentDashboard() {
         {/* Pending assignments */}
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>待交作业</h3>
-            <Link href="/student/assignments" className="text-xs" style={{ color: "var(--accent)" }}>查看全部 →</Link>
+            <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>{t("dashboard.pendingAssignments")}</h3>
+            <Link href="/student/assignments" className="text-xs" style={{ color: "var(--accent)" }}>{t("common.viewAll")} →</Link>
           </div>
           {pending.length === 0 ? (
-            <p className="text-sm text-center py-4" style={{ color: "var(--muted)" }}>暂无待交作业</p>
+            <p className="text-sm text-center py-4" style={{ color: "var(--muted)" }}>{t("dashboard.noPendingAssignments")}</p>
           ) : (
             <div className="space-y-2">
               {pending.slice(0, 4).map((a: any) => {
@@ -113,7 +115,7 @@ export default async function StudentDashboard() {
                   <div key={a.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: "var(--background)" }}>
                     <div>
                       <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{a.title}</div>
-                      <div className="text-xs" style={{ color: "var(--muted)" }}>{deadline.toLocaleDateString("zh-CN")} 截止</div>
+                      <div className="text-xs" style={{ color: "var(--muted)" }}>{deadline.toLocaleDateString()} · {t("assignments.deadline")}</div>
                     </div>
                     <span
                       className="text-xs px-2 py-0.5 rounded-full font-medium"
@@ -122,7 +124,7 @@ export default async function StudentDashboard() {
                         color: diff <= 1 ? "#ef4444" : diff <= 3 ? "#f59e0b" : "var(--muted)",
                       }}
                     >
-                      {diff <= 0 ? "已逾期" : `${diff}天后`}
+                      {diff <= 0 ? t("common.overdue") : t("common.daysLater", { count: diff })}
                     </span>
                   </div>
                 );
@@ -134,11 +136,11 @@ export default async function StudentDashboard() {
         {/* Recent grades */}
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>最近成绩</h3>
-            <Link href="/student/grades" className="text-xs" style={{ color: "var(--accent)" }}>查看全部 →</Link>
+            <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>{t("dashboard.recentGrades")}</h3>
+            <Link href="/student/grades" className="text-xs" style={{ color: "var(--accent)" }}>{t("common.viewAll")} →</Link>
           </div>
           {(grades ?? []).length === 0 ? (
-            <p className="text-sm text-center py-4" style={{ color: "var(--muted)" }}>暂无成绩记录</p>
+            <p className="text-sm text-center py-4" style={{ color: "var(--muted)" }}>{t("dashboard.noGrades")}</p>
           ) : (
             <div className="space-y-2">
               {(grades ?? []).map((g: any, i: number) => (
@@ -155,13 +157,13 @@ export default async function StudentDashboard() {
 
         {/* Quick links */}
         <Card>
-          <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>快速入口</h3>
+          <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>{t("dashboard.quickAccess")}</h3>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { href: "/student/ai-chat", label: "AI 学习助手", desc: "问问 AI 不懂的知识" },
-              { href: "/student/materials", label: "学习资料", desc: "查看老师上传的课件" },
-              { href: "/student/discussion", label: "讨论区", desc: "向同学、老师提问" },
-              { href: "/student/analytics", label: "学习报告", desc: "了解自己的学习情况" },
+              { href: "/student/ai-chat", label: t("nav.aiChat") },
+              { href: "/student/materials", label: t("nav.materials") },
+              { href: "/student/discussion", label: t("nav.discussion") },
+              { href: "/student/analytics", label: t("nav.analytics") },
             ].map((item) => (
               <Link key={item.href} href={item.href}>
                 <div
@@ -169,7 +171,6 @@ export default async function StudentDashboard() {
                   style={{ background: "var(--background)", borderColor: "var(--card-border)" }}
                 >
                   <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.label}</div>
-                  <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{item.desc}</div>
                 </div>
               </Link>
             ))}

@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { Card, Button, Modal, Input, Select } from "@/components/ui";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 
 interface GradeRow {
   id: string;
@@ -23,6 +24,7 @@ const EMPTY_FORM = { student_id: "", class_id: "", subject: "", score: "", total
 
 export default function GradesPage() {
   const { data: session } = useSession();
+  const t = useTranslations();
   const teacherId = (session?.user as any)?.id;
   const [grades, setGrades] = useState<GradeRow[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
@@ -222,12 +224,12 @@ export default function GradesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>成绩发布</h2>
-          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>录入成绩并自动推送给学生</p>
+          <h2 className="text-xl font-semibold" style={{ color: "var(--foreground)" }}>{t("gradesEx.manageTitle")}</h2>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t("gradesEx.manageSub")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => { setImportRows([]); setImportErrors([]); setImportOpen(true); }}>导入 Excel</Button>
-          <Button onClick={openAdd}>+ 录入成绩</Button>
+          <Button variant="secondary" onClick={() => { setImportRows([]); setImportErrors([]); setImportOpen(true); }}>{t("grades.importExcel")}</Button>
+          <Button onClick={openAdd}>+ {t("gradesEx.addGrade")}</Button>
         </div>
       </div>
 
@@ -235,43 +237,44 @@ export default function GradesPage() {
       <Card>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: "var(--muted)" }}>班级</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: "var(--muted)" }}>{t("common.class")}</label>
             <select className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
               style={{ background: "var(--background)", borderColor: "var(--card-border)", color: "var(--foreground)" }}
               value={fClass} onChange={(e) => { setFClass(e.target.value); setFStudent(""); }}>
-              <option value="">全部班级</option>
+              <option value="">{t("common.allClasses")}</option>
               {uniqueClasses.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: "var(--muted)" }}>学生</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: "var(--muted)" }}>{t("common.student")}</label>
             <select className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
               style={{ background: "var(--background)", borderColor: "var(--card-border)", color: "var(--foreground)" }}
               value={fStudent} onChange={(e) => setFStudent(e.target.value)}>
-              <option value="">全部学生</option>
+              <option value="">{t("common.allStudents")}</option>
+              <option value="">{t("common.allStudents")}</option>
               {uniqueStudents.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: "var(--muted)" }}>科目</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: "var(--muted)" }}>{t("common.subject")}</label>
             <select className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
               style={{ background: "var(--background)", borderColor: "var(--card-border)", color: "var(--foreground)" }}
               value={fSubject} onChange={(e) => setFSubject(e.target.value)}>
-              <option value="">全部科目</option>
+              <option value="">{t("common.allSubjects")}</option>
               {uniqueSubjects.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: "var(--muted)" }}>考试名称</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: "var(--muted)" }}>{t("grades.exam")}</label>
             <input className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
               style={{ background: "var(--background)", borderColor: "var(--card-border)", color: "var(--foreground)" }}
-              placeholder="搜索考试名称..." value={fExam} onChange={(e) => setFExam(e.target.value)} />
+              placeholder={t("gradesEx.searchExam")} value={fExam} onChange={(e) => setFExam(e.target.value)} />
           </div>
         </div>
         {(fClass || fStudent || fSubject || fExam) && (
           <div className="flex justify-end mt-2">
             <button className="text-xs" style={{ color: "var(--accent)" }}
-              onClick={() => { setFClass(""); setFStudent(""); setFSubject(""); setFExam(""); }}>清除筛选</button>
+              onClick={() => { setFClass(""); setFStudent(""); setFSubject(""); setFExam(""); }}>{t("common.clearFilter")}</button>
           </div>
         )}
       </Card>
@@ -282,16 +285,16 @@ export default function GradesPage() {
           <table className="w-full text-sm" style={{ color: "var(--foreground)" }}>
             <thead>
               <tr className="border-b" style={{ borderColor: "var(--card-border)" }}>
-                {["学生", "班级", "科目", "考试名称", "分数", "满分", "发布时间", "操作"].map((h) => (
+                {[t("common.student"), t("common.class"), t("common.subject"), t("grades.exam"), t("grades.score"), t("grades.total"), t("gradesEx.publishTime"), t("common.actions")].map((h) => (
                   <th key={h} className="px-4 py-3.5 text-left font-medium text-xs uppercase tracking-wider" style={{ color: "var(--muted)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center" style={{ color: "var(--muted)" }}>加载中...</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center" style={{ color: "var(--muted)" }}>{t("common.loading")}</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center" style={{ color: "var(--muted)" }}>暂无成绩记录</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center" style={{ color: "var(--muted)" }}>{t("gradesEx.noGrades")}</td></tr>
               ) : filtered.map((g) => (
                 <tr key={g.id} className="border-b hover:bg-white/5 transition-colors" style={{ borderColor: "var(--card-border)" }}>
                   <td className="px-4 py-3 font-medium">{g.users?.name}</td>
@@ -300,15 +303,15 @@ export default function GradesPage() {
                   <td className="px-4 py-3" style={{ color: "var(--muted)" }}>{g.exam_name || "—"}</td>
                   <td className="px-4 py-3 font-bold">{g.score}</td>
                   <td className="px-4 py-3" style={{ color: "var(--muted)" }}>{g.total_score}</td>
-                  <td className="px-4 py-3" style={{ color: "var(--muted)" }}>{new Date(g.created_at).toLocaleDateString("zh-CN")}</td>
+                  <td className="px-4 py-3" style={{ color: "var(--muted)" }}>{new Date(g.created_at).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <button className="text-xs px-2 py-1 rounded transition-colors"
                         style={{ color: "var(--accent)", border: "1px solid var(--accent)" }}
-                        onClick={() => openEdit(g)}>编辑</button>
+                        onClick={() => openEdit(g)}>{t("common.edit")}</button>
                       <button className="text-xs px-2 py-1 rounded transition-colors"
                         style={{ color: "#ef4444", border: "1px solid #ef4444" }}
-                        onClick={() => setDeleteId(g.id)}>删除</button>
+                        onClick={() => setDeleteId(g.id)}>{t("common.delete")}</button>
                     </div>
                   </td>
                 </tr>
@@ -318,57 +321,57 @@ export default function GradesPage() {
         </div>
         {filtered.length > 0 && (
           <div className="px-4 py-2.5 border-t text-xs" style={{ borderColor: "var(--card-border)", color: "var(--muted)" }}>
-            共 {filtered.length} 条{filtered.length < grades.length ? `（筛选后，总计 ${grades.length} 条）` : ""}
+            {t("gradesEx.recordCount", { count: filtered.length })}{filtered.length < grades.length ? ` (${t("common.allClasses")} ${grades.length})` : ""}
           </div>
         )}
       </Card>
 
       {/* Add/Edit Modal */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editId ? "修改成绩" : "录入成绩"}
-        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>取消</Button>
-          <Button loading={saving} onClick={handleSave}>{editId ? "保存修改" : "保存并推送"}</Button></>}>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editId ? t("gradesEx.editGrade") : t("gradesEx.addGrade")}
+        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>{t("common.cancel")}</Button>
+          <Button loading={saving} onClick={handleSave}>{editId ? t("gradesEx.saveEdit") : t("gradesEx.saveAndNotify")}</Button></>}>
         <div className="space-y-3">
-          <Select label="班级 *" value={form.class_id} onChange={(e) => handleFormClassChange(e.target.value)}>
-            <option value="">-- 选择班级 --</option>
+          <Select label={t("common.class") + " *"} value={form.class_id} onChange={(e) => handleFormClassChange(e.target.value)}>
+            <option value="">{t("common.selectClass")}</option>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
-          <Select label="学生 *" value={form.student_id} onChange={(e) => setForm((f) => ({ ...f, student_id: e.target.value }))}>
-            <option value="">-- 选择学生 --</option>
+          <Select label={t("common.student") + " *"} value={form.student_id} onChange={(e) => setForm((f) => ({ ...f, student_id: e.target.value }))}>
+            <option value="">{t("common.selectStudent")}</option>
             {formStudents.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </Select>
-          <Input label="科目 *" value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} placeholder="如：数学" />
-          <Input label="考试名称" value={form.exam_name} onChange={(e) => setForm((f) => ({ ...f, exam_name: e.target.value }))} placeholder="如：期末考试（可选）" />
+          <Input label={t("common.subject") + " *"} value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} placeholder={t("common.subjectPlaceholder")} />
+          <Input label={t("grades.exam")} value={form.exam_name} onChange={(e) => setForm((f) => ({ ...f, exam_name: e.target.value }))} placeholder={t("gradesEx.searchExam")} />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="得分 *" type="number" value={form.score} onChange={(e) => setForm((f) => ({ ...f, score: e.target.value }))} placeholder="0" />
-            <Input label="满分" type="number" value={form.total_score} onChange={(e) => setForm((f) => ({ ...f, total_score: e.target.value }))} placeholder="100" />
+            <Input label={t("grades.score") + " *"} type="number" value={form.score} onChange={(e) => setForm((f) => ({ ...f, score: e.target.value }))} placeholder="0" />
+            <Input label={t("grades.total")} type="number" value={form.total_score} onChange={(e) => setForm((f) => ({ ...f, total_score: e.target.value }))} placeholder="100" />
           </div>
         </div>
       </Modal>
 
       {/* Delete Confirm Modal */}
-      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="确认删除"
-        footer={<><Button variant="secondary" onClick={() => setDeleteId(null)}>取消</Button>
-          <Button variant="danger" loading={deleting} onClick={handleDelete}>确认删除</Button></>}>
-        <p style={{ color: "var(--foreground)" }}>确定要删除这条成绩记录吗？此操作不可撤销。</p>
+      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title={t("common.confirmDeleteTitle")}
+        footer={<><Button variant="secondary" onClick={() => setDeleteId(null)}>{t("common.cancel")}</Button>
+          <Button variant="danger" loading={deleting} onClick={handleDelete}>{t("common.confirmDeleteTitle")}</Button></>}>
+        <p style={{ color: "var(--foreground)" }}>{t("gradesEx.confirmDeleteMsg")}</p>
       </Modal>
 
       {/* Excel Import Modal */}
-      <Modal open={importOpen} onClose={() => setImportOpen(false)} title="Excel 批量导入成绩"
-        footer={<><Button variant="secondary" onClick={() => setImportOpen(false)}>取消</Button>
+      <Modal open={importOpen} onClose={() => setImportOpen(false)} title={t("gradesEx.importTitle")}
+        footer={<><Button variant="secondary" onClick={() => setImportOpen(false)}>{t("common.cancel")}</Button>
           <Button loading={importing} onClick={handleImport} disabled={importRows.length === 0 || importErrors.length > 0}>
-            确认导入（{importRows.length} 条）</Button></>}>
+            {t("gradesEx.confirmImportCount", { count: importRows.length })}</Button></>}>
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <button className="text-sm px-3 py-1.5 rounded-lg"
               style={{ background: "var(--background)", border: "1px solid var(--card-border)", color: "var(--foreground)" }}
-              onClick={downloadTemplate}>下载导入模板</button>
-            <span className="text-xs" style={{ color: "var(--muted)" }}>按模板格式填写后上传</span>
+              onClick={downloadTemplate}>{t("gradesEx.downloadTemplate")}</button>
+            <span className="text-xs" style={{ color: "var(--muted)" }}>{t("gradesEx.templateHint")}</span>
           </div>
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileChange} />
           <button className="w-full border-2 border-dashed rounded-xl py-8 text-sm transition-all"
             style={{ borderColor: "var(--card-border)", color: "var(--muted)" }}
             onClick={() => fileInputRef.current?.click()}>
-            点击选择 Excel 文件（.xlsx / .xls / .csv）
+            {t("gradesEx.selectExcel")}
           </button>
           {importErrors.length > 0 && (
             <div className="p-3 rounded-xl text-xs space-y-1"
@@ -378,12 +381,12 @@ export default function GradesPage() {
           )}
           {importRows.length > 0 && importErrors.length === 0 && (
             <div>
-              <p className="text-xs mb-2" style={{ color: "var(--muted)" }}>预览（共 {importRows.length} 条）：</p>
+              <p className="text-xs mb-2" style={{ color: "var(--muted)" }}>{t("gradesEx.previewCount", { count: importRows.length })}</p>
               <div className="overflow-x-auto rounded-xl border" style={{ borderColor: "var(--card-border)" }}>
                 <table className="w-full text-xs">
                   <thead>
                     <tr style={{ background: "var(--background)", borderBottom: "1px solid var(--card-border)" }}>
-                      {["班级", "学生", "科目", "考试名称", "得分", "满分"].map((h) => (
+                      {[t("common.class"), t("common.student"), t("common.subject"), t("grades.exam"), t("grades.score"), t("grades.total")].map((h) => (
                         <th key={h} className="px-3 py-2 text-left" style={{ color: "var(--muted)" }}>{h}</th>
                       ))}
                     </tr>
@@ -397,7 +400,7 @@ export default function GradesPage() {
                       </tr>
                     ))}
                     {importRows.length > 10 && (
-                      <tr><td colSpan={6} className="px-3 py-2 text-center" style={{ color: "var(--muted)" }}>…还有 {importRows.length - 10} 条</td></tr>
+                      <tr><td colSpan={6} className="px-3 py-2 text-center" style={{ color: "var(--muted)" }}>{t("gradesEx.moreRows", { count: importRows.length - 10 })}</td></tr>
                     )}
                   </tbody>
                 </table>
