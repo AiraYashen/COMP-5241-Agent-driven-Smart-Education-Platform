@@ -1,0 +1,247 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { getScenario, ScenarioConfig } from "@/lib/scenarios";
+import { useSession } from "next-auth/react";
+
+interface Chapter {
+  chapter: number;
+  title: string;
+  narrative: string;
+  narrator_hint: string;
+  choices: { key: string; text: string; hint?: string }[];
+  is_final?: boolean;
+}
+
+interface RealitySyncReport {
+  student_outcome: string;
+  real_history: string;
+  key_difference: string;
+  reflection: string;
+  score: number;
+}
+
+export default function ScenarioSimPage() {
+  const { id } = useParams<{ id: string }>();
+  const { data: session } = useSession();
+  const router = useRouter();
+  const scenario = getScenario(id) as ScenarioConfig | undefined;
+
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [chapter, setChapter] = useState<Chapter | null>(null);
+  const [totalChapters, setTotalChapters] = useState(5);
+  const [loading, setLoading] = useState(false);
+  const [choosing, setChoosing] = useState(false);
+  const [displayedText, setDisplayedText] = useState("");
+  const [textDone, setTextDone] = useState(false);
+  const [report, setReport] = useState<RealitySyncReport | null>(null);
+  const [showReport, setShowReport] = useState(false);
+  const textRef = useRef("");
+
+  // Typewriter effect
+  useEffect(() => {
+    if (!chapter) return;
+    const full = chapter.narrative ?? "";
+    textRef.current = full;
+    setDisplayedText("");
+    setTextDone(false);
+    let i = 0;
+    const iv = setInterval(() => {
+      i++;
+      setDisplayedText(full.slice(0, i));
+      if (i >= full.length) {
+        clearInterval(iv);
+        setTextDone(true);
+      }
+    }, 22);
+    return () => clearInterval(iv);
+  }, [chapter]);
+
+  // Start scenario
+  useEffect(() => {
+    if (!scenario || !session?.user?.id) return;
+    setLoading(true);
+    fetch("/api/student/scenario", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "start", scenarioId: id, studentId: session.user.id }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        setSessionId(d.sessionId);
+        setChapter(d.chapter);
+        setTotalChapters(d.totalChapters ?? 5);
+      })
+      .finally(() => setLoading(false));
+  }, [scenario, session?.user?.id]);
+
+  const makeChoice = async (choiceKey: string) => {
+    if (!sessionId) return;
+    setChoosing(true);
+    const res = await fetch("/api/student/scenario", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "choice", sessionId, choiceKey }),
+    });
+    const data = await res.json();
+    setChapter(data.chapter);
+    if (data.isFinal) {
+      // Get reality sync
+      const r2 = await fetch("/api/student/scenario", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete", sessionId }),
+      });
+      const d2 = await r2.json();
+      setReport(d2.report);
+    }
+    setChoosing(false);
+  };
+
+  if (!scenario) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-white bg-slate-900">
+        <p>情景未找到 <button className="underline" onClick={() => router.back()}>返回</button></p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-indigo-950 text-white gap-4">
+        <div className="animate-spin w-10 h-10 border-4 border-white/30 border-t-white rounded-full" />
+        <p className="text-slate-300">正在启动时空之门…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-indigo-950 to-slate-900 flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-3 border-b border-white/10">
+        <button onClick={() => router.back()} className="text-slate-400 hover:text-white text-sm">← 退出模拟</button>
+        <div className="text-center">
+          <span className="text-white font-semibold">{scenario.subjectIcon} {scenario.title}</span>
+        </div>
+        <div className="text-slate-400 text-sm">
+          {scenario.role}
+        </div>
+      </div>
+
+      {/* Chapter progress */}
+      <div className="flex items-center gap-2 px-6 py-3">
+        {Array.from({ length: totalChapters }).map((_, i) => {
+          const current = chapter?.chapter ?? 1;
+          return (
+            <div
+              key={i}
+              className={`flex-1 h-1.5 rounded-full transition-colors ${
+                i + 1 < current ? "bg-indigo-500" : i + 1 === current ? "bg-indigo-300" : "bg-white/10"
+              }`}
+            />
+          );
+        })}
+        <span className="text-slate-400 text-xs ml-2 whitespace-nowrap">
+          第 {chapter?.chapter ?? 1}/{totalChapters} 章
+        </span>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-0 relative">
+        {/* Narrative panel */}
+        <div className="flex-1 px-8 py-6 flex flex-col gap-4">
+          {chapter && (
+            <>
+              <h2 className="text-2xl font-bold text-white">{chapter.title}</h2>
+              <p className="text-xs text-slate-500 uppercase tracking-widest">— {scenario.narratorName}</p>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-slate-200 leading-loose text-base min-h-[180px]">
+                {displayedText}
+                {!textDone && <span className="animate-pulse">▌</span>}
+              </div>
+              {chapter.narrator_hint && (
+                <div className="text-sm text-indigo-300 italic">{chapter.narrator_hint}</div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Choices panel */}
+        <div className="lg:w-80 px-6 py-6 flex flex-col gap-4 border-l border-white/10">
+          <p className="text-slate-400 text-sm font-semibold uppercase tracking-wider">你的抉择</p>
+          {chapter?.choices?.map((c) => (
+            <button
+              key={c.key}
+              disabled={choosing || !textDone}
+              onClick={() => makeChoice(c.key)}
+              className="text-left bg-white/5 hover:bg-indigo-600/30 border border-white/10 hover:border-indigo-500 rounded-xl p-4 transition disabled:opacity-40"
+            >
+              <span className="text-indigo-400 font-bold text-lg mr-2">{c.key}.</span>
+              <span className="text-white">{c.text}</span>
+              {c.hint && <p className="text-xs text-slate-400 mt-1">{c.hint}</p>}
+            </button>
+          ))}
+          {choosing && (
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <div className="animate-spin w-4 h-4 border-2 border-slate-400/30 border-t-slate-400 rounded-full" />
+              时空正在重构…
+            </div>
+          )}
+          {chapter?.is_final && report && (
+            <button
+              onClick={() => setShowReport(true)}
+              className="mt-4 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition"
+            >
+              查看 Reality Sync 报告
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Reality Sync Modal */}
+      {showReport && report && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-2xl max-w-2xl w-full p-8 space-y-5">
+            <h2 className="text-2xl font-bold text-white text-center">Reality Sync 现实对比</h2>
+            <div className="text-center">
+              <span className="text-5xl font-black text-indigo-400">{report.score}</span>
+              <p className="text-slate-400 text-sm">决策质量评分（满分100）</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-indigo-900/40 rounded-xl p-4">
+                <p className="text-xs text-indigo-400 uppercase font-semibold mb-2">你的历史走向</p>
+                <p className="text-slate-200 text-sm leading-relaxed">{report.student_outcome}</p>
+              </div>
+              <div className="bg-amber-900/30 rounded-xl p-4">
+                <p className="text-xs text-amber-400 uppercase font-semibold mb-2">真实历史</p>
+                <p className="text-slate-200 text-sm leading-relaxed">{report.real_history}</p>
+              </div>
+            </div>
+            <div className="bg-white/5 rounded-xl p-4">
+              <p className="text-xs text-slate-400 font-semibold mb-1">关键差异</p>
+              <p className="text-slate-200 text-sm">{report.key_difference}</p>
+            </div>
+            <div className="bg-green-900/20 border border-green-700/30 rounded-xl p-4">
+              <p className="text-xs text-green-400 font-semibold mb-1">给你的反思</p>
+              <p className="text-slate-200 text-sm">{report.reflection}</p>
+            </div>
+            <div className="flex gap-3 justify-center pt-2">
+              <button
+                onClick={() => router.push("/student/scenario")}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+              >
+                探索其他情景
+              </button>
+              <button
+                onClick={() => setShowReport(false)}
+                className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
