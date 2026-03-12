@@ -4,8 +4,11 @@ import "./globals.css";
 import "katex/dist/katex.min.css";
 import { ThemeProvider } from "next-themes";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
+import { getLocale, getMessages } from "next-intl/server";
 import { SessionProvider } from "next-auth/react";
+
+// Force dynamic rendering so the cookie-based locale is read on every request
+export const dynamic = "force-dynamic";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,16 +30,17 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
   const messages = await getMessages();
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{ background: "var(--background)", color: "var(--foreground)" }}
       >
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <SessionProvider>
-            <NextIntlClientProvider messages={messages}>
+            <NextIntlClientProvider locale={locale} messages={messages}>
               {children}
             </NextIntlClientProvider>
           </SessionProvider>

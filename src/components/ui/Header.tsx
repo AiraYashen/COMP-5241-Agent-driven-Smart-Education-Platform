@@ -13,13 +13,18 @@ interface HeaderProps {
 
 function switchLocale(locale: string) {
   document.cookie = `NEXT_LOCALE=${locale}; path=/; max-age=31536000; SameSite=Lax`;
-  window.location.reload();
 }
 
 export default function Header({ title, notificationCount = 0, notificationHref, userName, userAvatar }: HeaderProps) {
   const t = useTranslations();
   const router = useRouter();
   const [langOpen, setLangOpen] = useState(false);
+
+  const handleSwitchLocale = (locale: string) => {
+    switchLocale(locale);
+    setLangOpen(false);
+    router.refresh();
+  };
 
   // read current locale from cookie (client-side)
   const currentLocale =
@@ -74,14 +79,14 @@ export default function Header({ title, notificationCount = 0, notificationHref,
               style={{ background: "var(--card)", borderColor: "var(--card-border)", color: "var(--foreground)" }}
             >
               <button
-                onClick={() => { setLangOpen(false); switchLocale("zh"); }}
+                onClick={() => { handleSwitchLocale("zh"); }}
                 className="w-full text-left px-3 py-2 hover:bg-white/5 transition-colors flex items-center justify-between"
               >
                 <span>中文</span>
                 {currentLocale === "zh" && <span style={{ color: "var(--accent)" }}>✓</span>}
               </button>
               <button
-                onClick={() => { setLangOpen(false); switchLocale("en"); }}
+                onClick={() => { handleSwitchLocale("en"); }}
                 className="w-full text-left px-3 py-2 hover:bg-white/5 transition-colors flex items-center justify-between"
               >
                 <span>English</span>
