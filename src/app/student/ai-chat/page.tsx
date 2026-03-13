@@ -233,7 +233,7 @@ export default function AiChatPage() {
             </select>
           )}
           <button
-            onClick={handleClear}
+            onClick={() => handleClear()}
             className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs border transition-colors"
             style={{ borderColor: "var(--card-border)", color: "var(--muted)" }}
             title="清除所有聊天记录"
