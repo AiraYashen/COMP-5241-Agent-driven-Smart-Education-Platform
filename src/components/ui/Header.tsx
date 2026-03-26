@@ -1,6 +1,4 @@
 "use client";
-import { useTranslations } from "next-intl";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface HeaderProps {
@@ -11,26 +9,8 @@ interface HeaderProps {
   userAvatar?: string;
 }
 
-function switchLocale(locale: string) {
-  document.cookie = `NEXT_LOCALE=${locale}; path=/; max-age=31536000; SameSite=Lax`;
-}
-
 export default function Header({ title, notificationCount = 0, notificationHref, userName, userAvatar }: HeaderProps) {
-  const t = useTranslations();
   const router = useRouter();
-  const [langOpen, setLangOpen] = useState(false);
-
-  const handleSwitchLocale = (locale: string) => {
-    switchLocale(locale);
-    setLangOpen(false);
-    router.refresh();
-  };
-
-  // read current locale from cookie (client-side)
-  const currentLocale =
-    typeof document !== "undefined"
-      ? (document.cookie.match(/NEXT_LOCALE=([^;]+)/) ?? [])[1] ?? "zh"
-      : "zh";
 
   return (
     <header
@@ -61,40 +41,6 @@ export default function Header({ title, notificationCount = 0, notificationHref,
             </span>
           )}
         </button>
-
-        {/* Language switcher */}
-        <div className="relative">
-          <button
-            onClick={() => setLangOpen((o) => !o)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors" onMouseEnter={(e)=>(e.currentTarget.style.background="var(--sidebar-hover)")} onMouseLeave={(e)=>(e.currentTarget.style.background="transparent")}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-            </svg>
-            <span>{t("common.language")}</span>
-          </button>
-          {langOpen && (
-            <div
-              className="absolute right-0 top-full mt-1 w-28 rounded-xl border py-1 shadow-2xl z-50 text-sm"
-              style={{ background: "var(--card)", borderColor: "var(--card-border)", color: "var(--foreground)" }}
-            >
-              <button
-                onClick={() => { handleSwitchLocale("zh"); }}
-                className="w-full text-left px-3 py-2 hover:bg-white/5 transition-colors flex items-center justify-between"
-              >
-                <span>中文</span>
-                {currentLocale === "zh" && <span style={{ color: "var(--accent)" }}>✓</span>}
-              </button>
-              <button
-                onClick={() => { handleSwitchLocale("en"); }}
-                className="w-full text-left px-3 py-2 hover:bg-white/5 transition-colors flex items-center justify-between"
-              >
-                <span>English</span>
-                {currentLocale === "en" && <span style={{ color: "var(--accent)" }}>✓</span>}
-              </button>
-            </div>
-          )}
-        </div>
 
         {/* Avatar */}
         {userName && (
