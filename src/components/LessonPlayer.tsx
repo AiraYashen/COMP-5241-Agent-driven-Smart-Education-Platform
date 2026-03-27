@@ -407,7 +407,8 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
     chatAnswerRef.current = "";
 
     setChatHistory((prev) => {
-      const next = [...prev, { role: "user", content: userQ, timestamp: Date.now() }];
+      const record: ChatRecord = { role: "user", content: userQ, timestamp: Date.now() };
+      const next = [...prev, record];
       persistChatHistory(next);
       persistLessonCache({ chatHistory: next });
       return next;
@@ -434,7 +435,8 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
         setChatAnswer(chatAnswerRef.current);
       }
       setChatHistory((prev) => {
-        const next = [...prev, { role: "ai", content: chatAnswerRef.current, timestamp: Date.now() }];
+        const record: ChatRecord = { role: "ai", content: chatAnswerRef.current, timestamp: Date.now() };
+        const next = [...prev, record];
         persistChatHistory(next);
         persistLessonCache({ chatHistory: next });
         return next;

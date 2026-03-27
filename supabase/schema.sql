@@ -224,6 +224,20 @@ create table if not exists ai_assistants (
   created_at     timestamptz default now()
 );
 
+-- 20. academic_terms (semester configuration for schedule week calculation)
+create table if not exists academic_terms (
+  id              uuid primary key default gen_random_uuid(),
+  name            text not null,
+  term_start_date date not null,
+  term_end_date   date,
+  is_active       boolean default false,
+  created_at      timestamptz default now()
+);
+
+create unique index if not exists idx_academic_terms_single_active
+on academic_terms (is_active)
+where is_active = true;
+
 -- Extend discussions table with new columns (safe if already exist)
 alter table discussions add column if not exists likes int default 0;
 alter table discussions add column if not exists image_url text;
@@ -284,3 +298,8 @@ on conflict do nothing;
 insert into teacher_classes (teacher_id, class_id, subject)
 values ('00000000-0000-0000-0000-000000000011', '00000000-0000-0000-0000-000000000020', '数学')
 on conflict do nothing;
+
+-- Default academic term (adjust dates as needed)
+insert into academic_terms (name, term_start_date, term_end_date, is_active)
+select '2025-2026学年第二学期', '2026-02-23', '2026-07-10', true
+where not exists (select 1 from academic_terms where is_active = true);
