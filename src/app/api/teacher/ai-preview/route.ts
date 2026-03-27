@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     const text = await deepseekChat(messages);
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const { title, summary } = JSON.parse(cleaned);
-    const sid = createLessonSession({
+    const sid = await createLessonSession({
       sourceText: String(content),
       knowledgePoint: String(title ?? ""),
       difficulty: "review",

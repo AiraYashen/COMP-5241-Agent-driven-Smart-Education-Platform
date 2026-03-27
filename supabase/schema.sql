@@ -238,6 +238,17 @@ create unique index if not exists idx_academic_terms_single_active
 on academic_terms (is_active)
 where is_active = true;
 
+-- 21. lesson_sessions (AI micro-lesson temporary session payload)
+create table if not exists lesson_sessions (
+  id         uuid primary key default gen_random_uuid(),
+  payload    jsonb not null,
+  expires_at timestamptz not null,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_lesson_sessions_expires_at
+on lesson_sessions (expires_at);
+
 -- Extend discussions table with new columns (safe if already exist)
 alter table discussions add column if not exists likes int default 0;
 alter table discussions add column if not exists image_url text;

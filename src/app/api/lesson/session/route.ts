@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "请至少提供知识点、备注或正文材料" }, { status: 400 });
   }
 
-  const sid = createLessonSession({
+  const sid = await createLessonSession({
     subject: body.subject?.trim(),
     textbook: body.textbook?.trim(),
     chapter: body.chapter?.trim(),

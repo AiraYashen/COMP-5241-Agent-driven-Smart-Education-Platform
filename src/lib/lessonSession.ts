@@ -1,3 +1,5 @@
+import { createAdminClient } from "@/lib/supabase";
+
 export interface LessonSessionPayload {
   subject?: string;
   textbook?: string;
@@ -8,34 +10,60 @@ export interface LessonSessionPayload {
   sourceText?: string;
 }
 
-interface LessonSessionRecord {
-  payload: LessonSessionPayload;
-  expiresAt: number;
-}
-
 const TTL_MS = 1000 * 60 * 30;
-const sessions = new Map<string, LessonSessionRecord>();
+const TABLE = "lesson_sessions";
 
-function cleanupExpiredSessions() {
-  const now = Date.now();
-  for (const [id, rec] of sessions.entries()) {
-    if (rec.expiresAt <= now) sessions.delete(id);
-  }
+function normalizePayload(payload: LessonSessionPayload): LessonSessionPayload {
+  return {
+    subject: payload.subject?.trim() || undefined,
+    textbook: payload.textbook?.trim() || undefined,
+    chapter: payload.chapter?.trim() || undefined,
+    knowledgePoint: payload.knowledgePoint?.trim() || undefined,
+    note: payload.note?.trim() || undefined,
+    difficulty: payload.difficulty ?? "review",
+    sourceText: payload.sourceText?.trim() || undefined,
+  };
 }
 
-export function createLessonSession(payload: LessonSessionPayload): string {
-  cleanupExpiredSessions();
+export async function createLessonSession(payload: LessonSessionPayload): Promise<string> {
+  const admin = createAdminClient();
   const id = crypto.randomUUID();
-  sessions.set(id, {
-    payload,
-    expiresAt: Date.now() + TTL_MS,
+  const expiresAtIso = new Date(Date.now() + TTL_MS).toISOString();
+  const normalized = normalizePayload(payload);
+
+  const { error } = await admin.from(TABLE).insert({
+    id,
+    payload: normalized,
+    expires_at: expiresAtIso,
   });
+
+  if (error) {
+    throw new Error(`创建课程会话失败: ${error.message}`);
+  }
+
   return id;
 }
 
-export function getLessonSession(id: string): LessonSessionPayload | null {
-  cleanupExpiredSessions();
-  const rec = sessions.get(id);
-  if (!rec) return null;
-  return rec.payload;
+export async function getLessonSession(id: string): Promise<LessonSessionPayload | null> {
+  if (!id) return null;
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from(TABLE)
+    .select("payload, expires_at")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`读取课程会话失败: ${error.message}`);
+  }
+  if (!data) return null;
+
+  const expiresAtMs = Date.parse(String(data.expires_at));
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
+    await admin.from(TABLE).delete().eq("id", id);
+    return null;
+  }
+
+  return normalizePayload((data.payload ?? {}) as LessonSessionPayload);
 }

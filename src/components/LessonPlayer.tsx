@@ -58,6 +58,7 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   const waitingForUserRef = useRef(false);
   const skipCurrentSegmentRef = useRef(false);
   const restoredFromCacheRef = useRef(false);
+  const fallbackTriedRef = useRef(false);
   const cacheHydratedRef = useRef(false);
   const simplifyAttemptRef = useRef(0); // 记录当前段"没懂"次数
 
@@ -591,17 +592,76 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
       persistLessonCache({ isDone: true });
       es.close();
     });
-    es.addEventListener("error", (e) => {
+    es.addEventListener("error", async (e) => {
+      const target = e.target as EventSource;
+      es.close();
+
+      // 部分网络环境对 EventSource 支持不稳定，自动降级到普通 POST 以提升成功率
+      if (!fallbackTriedRef.current) {
+        fallbackTriedRef.current = true;
+        try {
+          setLoadingMessage("连接波动，切换稳定模式中...");
+          const res = await fetch("/api/lesson", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question, sid }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.error ?? "内容生成失败");
+
+          allSegmentsRef.current = [];
+          speechQueueRef.current = [];
+          waitingForUserRef.current = false;
+          isSpeakingRef.current = false;
+          setShownSegments([]);
+          setSegmentStates({});
+          setCurrentIndex(-1);
+          setTotalSegments(0);
+
+          setTitle(data.title ?? "AI 微课");
+          setIsLoading(false);
+          setError(null);
+
+          const segments = Array.isArray(data.segments) ? data.segments : [];
+          segments.forEach((seg: any, i: number) => {
+            const normalized: SegmentData = {
+              index: i,
+              text: seg?.text ?? "",
+              keywords: Array.isArray(seg?.keywords) ? seg.keywords : [],
+              concepts: Array.isArray(seg?.concepts) ? seg.concepts : [],
+              visualItems: Array.isArray(seg?.visualItems) ? seg.visualItems : [],
+            };
+            allSegmentsRef.current.push(normalized);
+            setTotalSegments((prev) => {
+              const next = prev + 1;
+              persistLessonCache({ totalSegments: next, segments: allSegmentsRef.current });
+              return next;
+            });
+            setTimeout(() => enqueueSegment(normalized), 40 + i * 15);
+          });
+
+          setIsDone(true);
+          persistLessonCache({ isDone: true, segments: allSegmentsRef.current });
+          return;
+        } catch (fallbackErr) {
+          const msg = fallbackErr instanceof Error ? fallbackErr.message : "连接中断，请刷新重试";
+          setError(msg);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       try {
         const data = JSON.parse((e as MessageEvent).data);
         setError(data.message ?? "未知错误");
       } catch {
-        if ((e.target as EventSource).readyState !== EventSource.CLOSED) {
+        if (target.readyState !== EventSource.CLOSED) {
+          setError("连接中断，请刷新重试");
+        } else {
           setError("连接中断，请刷新重试");
         }
       }
       setIsLoading(false);
-      es.close();
     });
     return () => { es.close(); window.speechSynthesis.cancel(); };
   }, [question, sid, enqueueSegment]);

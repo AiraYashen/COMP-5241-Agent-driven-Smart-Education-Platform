@@ -3,7 +3,7 @@ import { generateLessonPlan } from "@/lib/deepseek";
 import { getLessonSession } from "@/lib/lessonSession";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function encodeSSE(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -13,8 +13,16 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const question = searchParams.get("q");
   const sid = searchParams.get("sid");
-
-  const sessionPayload = sid ? getLessonSession(sid) : null;
+  let sessionPayload = null;
+  try {
+    sessionPayload = sid ? await getLessonSession(sid) : null;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "读取会话失败";
+    return new Response(
+      encodeSSE("error", { message }),
+      { status: 500, headers: { "Content-Type": "text/event-stream" } }
+    );
+  }
 
   if ((!question || question.trim().length === 0) && !sessionPayload) {
     return new Response(
@@ -75,7 +83,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const sid = typeof body?.sid === "string" ? body.sid : "";
     const question = typeof body?.question === "string" ? body.question.trim() : "";
-    const sessionPayload = sid ? getLessonSession(sid) : null;
+    const sessionPayload = sid ? await getLessonSession(sid) : null;
 
     if (!sessionPayload && !question) {
       return Response.json({ error: "请提供学习主题或会话信息" }, { status: 400 });

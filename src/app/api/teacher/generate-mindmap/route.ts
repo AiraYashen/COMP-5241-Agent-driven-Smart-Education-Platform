@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   const { content, sid, topic } = await req.json();
-  const sessionPayload = typeof sid === "string" && sid ? getLessonSession(sid) : null;
+  const sessionPayload = typeof sid === "string" && sid ? await getLessonSession(sid) : null;
   const effectiveContent =
     (typeof content === "string" ? content : "") ||
     (typeof topic === "string" ? topic : "") ||
