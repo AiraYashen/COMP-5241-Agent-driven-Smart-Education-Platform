@@ -122,7 +122,7 @@ export default function SchedulePage() {
     load();
   };
 
-  const handleEditSchedule = (s: Schedule & { class_id?: string; teacher_id?: string }) => {
+  const handleEditSchedule = (s: Schedule) => {
     setEditingScheduleId(s.id);
     setForm({
       class_id: s.class_id ?? "",

@@ -1,16 +1,4 @@
-interface SupabaseLike {
-  from: (table: string) => {
-    select: (columns: string) => {
-      eq: (column: string, value: unknown) => {
-        order: (column: string, options?: { ascending?: boolean }) => {
-          limit: (count: number) => Promise<{ data: any[] | null; error: unknown }>;
-        };
-      };
-    };
-  };
-}
-
-export async function getConfiguredCurrentWeek(db: SupabaseLike): Promise<number> {
+export async function getConfiguredCurrentWeek(db: any): Promise<number> {
   const { data } = await db
     .from("academic_terms")
     .select("term_start_date")
