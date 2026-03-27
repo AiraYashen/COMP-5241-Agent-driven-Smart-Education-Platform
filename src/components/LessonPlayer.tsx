@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import TitleCard from "@/components/TitleCard";
 import VisualPanel from "@/components/VisualPanel";
 import SubtitleBar from "@/components/SubtitleBar";
 import TranscriptDrawer from "@/components/TranscriptDrawer";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import { SegmentData, ChatRecord } from "@/types/lesson";
+import { readLessonCache, writeLessonCache } from "@/lib/lessonCache";
 
 export type { SegmentData };
 
@@ -16,6 +17,17 @@ interface LessonPlayerProps {
 }
 
 type SegmentState = "pending" | "speaking" | "waiting" | "understood" | "simplifying";
+
+interface LessonPlayerCache {
+  title: string | null;
+  segments: SegmentData[];
+  shownSegments: SegmentData[];
+  segmentStates: Record<number, SegmentState>;
+  totalSegments: number;
+  currentIndex: number;
+  isDone: boolean;
+  chatHistory: ChatRecord[];
+}
 
 export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   const [title, setTitle] = useState<string | null>(null);
@@ -37,12 +49,16 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   const [chatInput, setChatInput] = useState("");
   const [chatAnswer, setChatAnswer] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [chatSpeechState, setChatSpeechState] = useState<"idle" | "speaking" | "paused">("idle");
   const chatAnswerRef = useRef("");
   const [chatHistory, setChatHistory] = useState<ChatRecord[]>([]);
 
   const speechQueueRef = useRef<SegmentData[]>([]);
   const isSpeakingRef = useRef(false);
   const waitingForUserRef = useRef(false);
+  const skipCurrentSegmentRef = useRef(false);
+  const restoredFromCacheRef = useRef(false);
+  const cacheHydratedRef = useRef(false);
   const simplifyAttemptRef = useRef(0); // 记录当前段"没懂"次数
 
   // 移动端语音解锁
@@ -59,10 +75,57 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   // 用于自动滚动到当前段落
   const segmentRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lessonCacheKey = useMemo(
+    () => `lesson_player_cache:${sid?.trim() ? `sid:${sid}` : `q:${question}`}`,
+    [question, sid]
+  );
+  const chatHistoryCacheKey = useMemo(
+    () => `lesson_chat_history:${sid?.trim() ? `sid:${sid}` : `q:${question}`}`,
+    [question, sid]
+  );
+
+  const titleRef = useRef<string | null>(title);
+  const shownSegmentsRef = useRef<SegmentData[]>(shownSegments);
+  const segmentStatesRef = useRef<Record<number, SegmentState>>(segmentStates);
+  const totalSegmentsRef = useRef(totalSegments);
+  const currentIndexRef = useRef(currentIndex);
+  const isDoneRef = useRef(isDone);
+  const chatHistoryRef = useRef<ChatRecord[]>(chatHistory);
+
+  useEffect(() => { titleRef.current = title; }, [title]);
+  useEffect(() => { shownSegmentsRef.current = shownSegments; }, [shownSegments]);
+  useEffect(() => { segmentStatesRef.current = segmentStates; }, [segmentStates]);
+  useEffect(() => { totalSegmentsRef.current = totalSegments; }, [totalSegments]);
+  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+  useEffect(() => { isDoneRef.current = isDone; }, [isDone]);
+  useEffect(() => { chatHistoryRef.current = chatHistory; }, [chatHistory]);
+
+  const persistLessonCache = useCallback((overrides?: Partial<LessonPlayerCache> & { segments?: SegmentData[] }) => {
+    if (!cacheHydratedRef.current) return;
+    writeLessonCache(lessonCacheKey, {
+      title: overrides?.title ?? titleRef.current,
+      segments: overrides?.segments ?? allSegmentsRef.current,
+      shownSegments: overrides?.shownSegments ?? shownSegmentsRef.current,
+      segmentStates: overrides?.segmentStates ?? segmentStatesRef.current,
+      totalSegments: overrides?.totalSegments ?? totalSegmentsRef.current,
+      currentIndex: overrides?.currentIndex ?? currentIndexRef.current,
+      isDone: overrides?.isDone ?? isDoneRef.current,
+      chatHistory: overrides?.chatHistory ?? chatHistoryRef.current,
+    });
+  }, [lessonCacheKey]);
+
+  const persistChatHistory = useCallback((nextHistory: ChatRecord[]) => {
+    if (!cacheHydratedRef.current) return;
+    writeLessonCache(chatHistoryCacheKey, nextHistory);
+  }, [chatHistoryCacheKey]);
 
   const setSegState = useCallback((idx: number, state: SegmentState) => {
-    setSegmentStates((prev) => ({ ...prev, [idx]: state }));
-  }, []);
+    setSegmentStates((prev) => {
+      const next = { ...prev, [idx]: state };
+      persistLessonCache({ segmentStates: next });
+      return next;
+    });
+  }, [persistLessonCache]);
 
   // 异步加载可用语音（移动端 getVoices() 在 voiceschanged 前返回空数组）
   useEffect(() => {
@@ -77,6 +140,28 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   useEffect(() => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (!isIOS) speechUnlockedRef.current = true;
+  }, []);
+
+  // 刷新/离开页面时自动暂停朗读，避免语音跨页面继续播放
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const pauseSpeechOnLeave = () => {
+      try {
+        if (window.speechSynthesis.speaking || window.speechSynthesis.paused) {
+          window.speechSynthesis.pause();
+        }
+      } catch {
+        // ignore browser speech API errors
+      }
+    };
+
+    window.addEventListener("beforeunload", pauseSpeechOnLeave);
+    window.addEventListener("pagehide", pauseSpeechOnLeave);
+    return () => {
+      window.removeEventListener("beforeunload", pauseSpeechOnLeave);
+      window.removeEventListener("pagehide", pauseSpeechOnLeave);
+    };
   }, []);
 
   const getChineseVoice = (): SpeechSynthesisVoice | null => {
@@ -132,6 +217,7 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   }, []);
 
   const playSegment = useCallback((seg: SegmentData) => {
+    skipCurrentSegmentRef.current = false;
     isSpeakingRef.current = true;
     setIsSpeaking(true);
     setCurrentIndex(seg.index);
@@ -143,7 +229,9 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
     // 加入时间线（如果还没有）
     setShownSegments((prev) => {
       if (prev.find((s) => s.index === seg.index)) return prev;
-      return [...prev, seg];
+      const next = [...prev, seg];
+      persistLessonCache({ shownSegments: next, currentIndex: seg.index });
+      return next;
     });
 
     // 滚动到当前段（稍延迟等 DOM 渲染）
@@ -156,6 +244,10 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
     speakText(
       textToSpeak,
       () => {
+        if (skipCurrentSegmentRef.current) {
+          skipCurrentSegmentRef.current = false;
+          return;
+        }
         isSpeakingRef.current = false;
         setIsSpeaking(false);
         setSpeechProgress(1);
@@ -216,6 +308,48 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
     if (next) playSegment(next);
   }, [currentIndex, playSegment, setSegState]);
 
+  const handleSkipReading = useCallback(() => {
+    if (currentIndex < 0) {
+      return;
+    }
+
+    const currentSeg = allSegmentsRef.current.find((s) => s.index === currentIndex);
+    const currentText = currentSeg ? (currentSeg.simplifiedText ?? currentSeg.text) : "";
+
+    skipCurrentSegmentRef.current = true;
+    waitingForUserRef.current = false;
+    isSpeakingRef.current = false;
+    setIsSpeaking(false);
+    setSpeechProgress(1);
+    setSubtitleCharIndex(currentText.length);
+    setSegState(currentIndex, "waiting");
+    window.speechSynthesis.cancel();
+  }, [currentIndex, playSegment, setSegState]);
+
+  const handleReplayLesson = useCallback(() => {
+    const segments = allSegmentsRef.current;
+    if (segments.length === 0) return;
+
+    window.speechSynthesis.cancel();
+    speechQueueRef.current = [];
+    waitingForUserRef.current = false;
+    isSpeakingRef.current = false;
+    skipCurrentSegmentRef.current = false;
+
+    setIsSpeaking(false);
+    setSpeechProgress(0);
+    setSubtitleCharIndex(0);
+    setCurrentIndex(-1);
+    setShownSegments([]);
+    setSegmentStates({});
+    persistLessonCache({ currentIndex: -1, shownSegments: [], segmentStates: {} });
+
+    const [first, ...rest] = segments;
+    if (!first) return;
+    speechQueueRef.current = rest;
+    playSegment(first);
+  }, [playSegment]);
+
   const handleSimplify = useCallback(async () => {
     if (currentIndex < 0) return;
     const idx = currentIndex;
@@ -272,8 +406,15 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
     setChatAnswer("");
     chatAnswerRef.current = "";
 
-    setChatHistory((prev) => [...prev, { role: "user", content: userQ, timestamp: Date.now() }]);
-    if (window.speechSynthesis.speaking) window.speechSynthesis.pause();
+    setChatHistory((prev) => {
+      const next = [...prev, { role: "user", content: userQ, timestamp: Date.now() }];
+      persistChatHistory(next);
+      persistLessonCache({ chatHistory: next });
+      return next;
+    });
+    if (window.speechSynthesis.speaking || window.speechSynthesis.paused) {
+      window.speechSynthesis.cancel();
+    }
 
     const context = `课题：${question}，当前讲到：${allSegmentsRef.current.find((s) => s.index === currentIndex)?.text ?? ""}`;
 
@@ -292,18 +433,140 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
         chatAnswerRef.current += decoder.decode(value);
         setChatAnswer(chatAnswerRef.current);
       }
-      setChatHistory((prev) => [...prev, { role: "ai", content: chatAnswerRef.current, timestamp: Date.now() }]);
-      speakText(chatAnswerRef.current, () => {});
+      setChatHistory((prev) => {
+        const next = [...prev, { role: "ai", content: chatAnswerRef.current, timestamp: Date.now() }];
+        persistChatHistory(next);
+        persistLessonCache({ chatHistory: next });
+        return next;
+      });
+      setChatSpeechState("speaking");
+      speakText(chatAnswerRef.current, () => setChatSpeechState("idle"));
     } catch (e) {
       console.error(e);
     } finally {
       setIsChatLoading(false);
     }
-  }, [chatInput, isChatLoading, question, currentIndex, speakText]);
+  }, [chatInput, isChatLoading, question, currentIndex, speakText, persistChatHistory, persistLessonCache]);
+
+  const handleToggleChatSpeech = useCallback(() => {
+    if (!chatAnswer.trim()) return;
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      setChatSpeechState("speaking");
+      return;
+    }
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+      setChatSpeechState("paused");
+    }
+  }, [chatAnswer]);
+
+  const handleStopChatSpeech = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setChatSpeechState("idle");
+  }, []);
+
+  const handleClearChatAnswer = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setChatSpeechState("idle");
+    setChatAnswer("");
+    chatAnswerRef.current = "";
+  }, []);
+
+  // 尝试从缓存恢复已生成课程，避免模式切换或历史回看时重复生成
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    restoredFromCacheRef.current = false;
+    cacheHydratedRef.current = false;
+
+    try {
+      const cache = readLessonCache<LessonPlayerCache>(lessonCacheKey);
+      const chatOnlyCache = readLessonCache<ChatRecord[]>(chatHistoryCacheKey);
+      if (!cache) {
+        if (Array.isArray(chatOnlyCache)) setChatHistory(chatOnlyCache);
+        cacheHydratedRef.current = true;
+        return;
+      }
+      if (!Array.isArray(cache.segments) || cache.segments.length === 0) {
+        if (Array.isArray(chatOnlyCache)) setChatHistory(chatOnlyCache);
+        cacheHydratedRef.current = true;
+        return;
+      }
+
+      allSegmentsRef.current = cache.segments;
+      speechQueueRef.current = [];
+      waitingForUserRef.current = false;
+      isSpeakingRef.current = false;
+
+      setTitle(cache.title ?? null);
+      setShownSegments(cache.shownSegments?.length ? cache.shownSegments : cache.segments);
+      setSegmentStates(
+        cache.segmentStates && Object.keys(cache.segmentStates).length > 0
+          ? cache.segmentStates
+          : Object.fromEntries(cache.segments.map((seg) => [seg.index, "understood" as const]))
+      );
+      setTotalSegments(cache.totalSegments ?? cache.segments.length);
+      setCurrentIndex(
+        typeof cache.currentIndex === "number"
+          ? cache.currentIndex
+          : (cache.shownSegments?.[cache.shownSegments.length - 1]?.index
+            ?? cache.segments[cache.segments.length - 1]?.index
+            ?? -1)
+      );
+      setIsDone(cache.isDone ?? true);
+      setChatHistory(
+        Array.isArray(chatOnlyCache)
+          ? chatOnlyCache
+          : Array.isArray(cache.chatHistory)
+          ? cache.chatHistory
+          : []
+      );
+      setIsLoading(false);
+      setError(null);
+      setIsSpeaking(false);
+      setSpeechProgress(0);
+      setSubtitleCharIndex(0);
+      restoredFromCacheRef.current = true;
+    } catch {
+      // ignore invalid cache
+    } finally {
+      cacheHydratedRef.current = true;
+    }
+  }, [lessonCacheKey, chatHistoryCacheKey]);
+
+  // 持久化当前课程状态，供切换模式和历史回看恢复
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!cacheHydratedRef.current) return;
+    if (!title && allSegmentsRef.current.length === 0) return;
+
+    const cache: LessonPlayerCache = {
+      title,
+      segments: allSegmentsRef.current,
+      shownSegments,
+      segmentStates,
+      totalSegments,
+      currentIndex,
+      isDone,
+      chatHistory,
+    };
+
+    writeLessonCache(lessonCacheKey, cache);
+  }, [
+    lessonCacheKey,
+    title,
+    shownSegments,
+    segmentStates,
+    totalSegments,
+    currentIndex,
+    isDone,
+    chatHistory,
+  ]);
 
   // SSE
   useEffect(() => {
     if (!question && !sid) { setError("请输入问题"); setIsLoading(false); return; }
+    if (restoredFromCacheRef.current) return;
     window.speechSynthesis.cancel();
     const apiUrl = sid
       ? `/api/lesson?sid=${encodeURIComponent(sid)}`
@@ -314,10 +577,18 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
     es.addEventListener("segment", (e) => {
       const seg: SegmentData = JSON.parse(e.data);
       allSegmentsRef.current.push(seg);
-      setTotalSegments((prev) => prev + 1);
+      setTotalSegments((prev) => {
+        const next = prev + 1;
+        persistLessonCache({ totalSegments: next, segments: allSegmentsRef.current });
+        return next;
+      });
       setTimeout(() => enqueueSegment(seg), 80);
     });
-    es.addEventListener("done", () => { setIsDone(true); es.close(); });
+    es.addEventListener("done", () => {
+      setIsDone(true);
+      persistLessonCache({ isDone: true });
+      es.close();
+    });
     es.addEventListener("error", (e) => {
       try {
         const data = JSON.parse((e as MessageEvent).data);
@@ -342,8 +613,12 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
     );
   }
 
-  const currentState: SegmentState = currentIndex >= 0 ? (segmentStates[currentIndex] ?? "pending") : "idle" as SegmentState;
-  const currentSeg = allSegmentsRef.current.find((s) => s.index === currentIndex);
+  const fallbackSeg = shownSegments.length > 0 ? shownSegments[shownSegments.length - 1] : undefined;
+  const currentSeg = allSegmentsRef.current.find((s) => s.index === currentIndex) ?? fallbackSeg;
+  const currentState: SegmentState =
+    currentSeg
+      ? (segmentStates[currentSeg.index] ?? "pending")
+      : "idle" as SegmentState;
   const subtitleText = currentSeg ? (currentSeg.simplifiedText ?? currentSeg.text) : "";
 
   return (
@@ -370,7 +645,7 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
               朗读中
             </span>
           )}
-          {!isLoading && (
+          {!isLoading && isSpeaking && (
             <button
               onClick={() => {
                 if (window.speechSynthesis.paused) { window.speechSynthesis.resume(); setIsSpeaking(true); }
@@ -378,7 +653,15 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
               }}
               className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-gray-400 hover:text-white transition-colors text-xs"
             >
-              {isSpeaking ? "暂停" : "继续"}
+              暂停
+            </button>
+          )}
+          {!isLoading && allSegmentsRef.current.length > 0 && (
+            <button
+              onClick={handleReplayLesson}
+              className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-gray-400 hover:text-white transition-colors text-xs"
+            >
+              重新朗读
             </button>
           )}
           <span className="text-gray-600">
@@ -483,11 +766,12 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
       {/* 底部字幕栏 */}
       <SubtitleBar
         text={subtitleText}
-        isVisible={currentIndex >= 0}
+        isVisible={currentIndex >= 0 || shownSegments.length > 0}
         isDone={isDone && !isSpeaking}
         segmentState={currentState as "speaking" | "waiting" | "simplifying" | "idle"}
         speechCharIndex={subtitleCharIndex}
         onUnderstood={handleUnderstood}
+        onSkipReading={handleSkipReading}
         onSimplify={handleSimplify}
         onOpenTranscript={() => setTranscriptOpen(true)}
         chatInput={chatInput}
@@ -495,6 +779,10 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
         onChatSubmit={handleChat}
         isChatLoading={isChatLoading}
         chatAnswer={chatAnswer}
+        chatSpeechState={chatSpeechState}
+        onToggleChatSpeech={handleToggleChatSpeech}
+        onStopChatSpeech={handleStopChatSpeech}
+        onClearChatAnswer={handleClearChatAnswer}
       />
 
       {/* 记录抽屉 */}

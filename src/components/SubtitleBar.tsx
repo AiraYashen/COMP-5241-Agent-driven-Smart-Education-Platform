@@ -25,6 +25,7 @@ interface SubtitleBarProps {
   segmentState: "speaking" | "waiting" | "simplifying" | "idle";
   speechCharIndex: number;   // 已朗读到的字符位置
   onUnderstood: () => void;
+  onSkipReading: () => void;
   onSimplify: () => void;
   onOpenTranscript: () => void;
   chatInput: string;
@@ -32,18 +33,25 @@ interface SubtitleBarProps {
   onChatSubmit: () => void;
   isChatLoading: boolean;
   chatAnswer: string;
+  chatSpeechState: "idle" | "speaking" | "paused";
+  onToggleChatSpeech: () => void;
+  onStopChatSpeech: () => void;
+  onClearChatAnswer: () => void;
 }
 
 export default function SubtitleBar({
   text, isVisible, isDone,
   segmentState, speechCharIndex,
-  onUnderstood, onSimplify, onOpenTranscript,
+  onUnderstood, onSkipReading, onSimplify, onOpenTranscript,
   chatInput, onChatInputChange, onChatSubmit, isChatLoading, chatAnswer,
+  chatSpeechState, onToggleChatSpeech, onStopChatSpeech, onClearChatAnswer,
 }: SubtitleBarProps) {
   const [expanded, setExpanded] = useState(false);
+  const [chatExpanded, setChatExpanded] = useState(true);
 
   // 新段落开始时自动折叠
   useEffect(() => { setExpanded(false); }, [text]);
+  useEffect(() => { if (chatAnswer) setChatExpanded(true); }, [chatAnswer]);
 
   if (!isVisible && !isDone) return null;
 
@@ -84,8 +92,44 @@ export default function SubtitleBar({
           <div className="flex gap-2 items-start animate-fade-in">
             <div className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] text-white font-bold">师</div>
             <div className="flex-1 bg-indigo-950/60 border border-indigo-700/30 rounded-2xl rounded-tl-sm px-3 py-2 text-sm text-indigo-100 leading-relaxed">
-              <ReactMarkdown components={mdComponents}>{chatAnswer}</ReactMarkdown>
-              {isChatLoading && (
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <button
+                  type="button"
+                  onClick={() => setChatExpanded((v) => !v)}
+                  className="text-[11px] text-indigo-200/90 hover:text-white transition-colors"
+                >
+                  {chatExpanded ? "收起回答" : "展开回答"}
+                </button>
+                <div className="flex items-center gap-2">
+                  {chatSpeechState !== "idle" && (
+                    <button
+                      type="button"
+                      onClick={onToggleChatSpeech}
+                      className="text-[11px] text-indigo-200/90 hover:text-white transition-colors"
+                    >
+                      {chatSpeechState === "paused" ? "继续朗读" : "暂停朗读"}
+                    </button>
+                  )}
+                  {chatSpeechState !== "idle" && (
+                    <button
+                      type="button"
+                      onClick={onStopChatSpeech}
+                      className="text-[11px] text-indigo-200/90 hover:text-white transition-colors"
+                    >
+                      停止朗读
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onClearChatAnswer}
+                    className="text-[11px] text-indigo-200/90 hover:text-white transition-colors"
+                  >
+                    关闭
+                  </button>
+                </div>
+              </div>
+              {chatExpanded && <ReactMarkdown components={mdComponents}>{chatAnswer}</ReactMarkdown>}
+              {isChatLoading && chatExpanded && (
                 <span className="inline-block w-0.5 h-3.5 bg-indigo-400 ml-0.5 animate-blink align-middle" />
               )}
             </div>
@@ -150,6 +194,19 @@ export default function SubtitleBar({
         </div>
 
         {/* ── 理解 / 没懂 按钮 ─────────────────────────────── */}
+        {segmentState === "speaking" && (
+          <div className="flex items-center gap-2 animate-fade-in pl-7">
+            <button
+              onClick={onSkipReading}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white text-xs rounded-xl font-medium transition-all hover:scale-105 active:scale-95"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M4 5l7 7-7 7" />
+              </svg>
+              跳过朗读
+            </button>
+          </div>
+        )}
         {segmentState === "waiting" && (
           <div className="flex items-center gap-2 animate-fade-in pl-7">
             <button

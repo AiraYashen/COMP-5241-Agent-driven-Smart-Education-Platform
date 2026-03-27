@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import LessonPlayer from "@/components/LessonPlayer";
+import { normalizeMermaidCode } from "@/lib/mermaid";
+import { readLessonCache, writeLessonCache } from "@/lib/lessonCache";
 
 type Mode = "audio" | "text" | "mindmap";
 
@@ -16,6 +18,11 @@ interface Props {
   sid?: string;
 }
 
+interface LessonModeCache {
+  textContent: string | null;
+  mindmapHtml: string | null;
+}
+
 export default function LessonModeWrapper({ question, sid }: Props) {
   const [mode, setMode] = useState<Mode | null>(null);
   const [textContent, setTextContent] = useState<string | null>(null);
@@ -23,6 +30,23 @@ export default function LessonModeWrapper({ question, sid }: Props) {
   const [generatingText, setGeneratingText] = useState(false);
   const [generatingMindmap, setGeneratingMindmap] = useState(false);
   const mermaidRef = useRef<HTMLDivElement>(null);
+  const lessonCacheKey = useMemo(
+    () => `lesson_mode_cache:${sid?.trim() ? `sid:${sid}` : `q:${question}`}`,
+    [question, sid]
+  );
+
+  // Restore text/mindmap cache to avoid repeated requests on remount/history revisit
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const cache = readLessonCache<LessonModeCache>(lessonCacheKey);
+      if (!cache) return;
+      if (typeof cache.textContent === "string") setTextContent(cache.textContent);
+      if (typeof cache.mindmapHtml === "string") setMindmapHtml(cache.mindmapHtml);
+    } catch {
+      // ignore invalid cache
+    }
+  }, [lessonCacheKey]);
 
   // Load preference from localStorage
   useEffect(() => {
@@ -34,6 +58,14 @@ export default function LessonModeWrapper({ question, sid }: Props) {
     setMode(m);
     localStorage.setItem("lesson_mode", m);
   };
+
+  // Persist generated text/mindmap cache
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (textContent === null && mindmapHtml === null) return;
+    const cache: LessonModeCache = { textContent, mindmapHtml };
+    writeLessonCache(lessonCacheKey, cache);
+  }, [lessonCacheKey, textContent, mindmapHtml]);
 
   // Text mode: generate lesson text without audio
   useEffect(() => {
@@ -79,7 +111,8 @@ export default function LessonModeWrapper({ question, sid }: Props) {
             const mermaid = (await import("mermaid")).default;
             mermaid.initialize({ startOnLoad: false, theme: "base" });
             const id = `lmm_${Date.now()}`;
-            const { svg } = await mermaid.render(id, data.code);
+            const code = normalizeMermaidCode(String(data.code ?? ""));
+            const { svg } = await mermaid.render(id, code);
             setMindmapHtml(svg);
           } catch {
             setMindmapHtml("<p style='color:#aaa'>脑图渲染失败</p>");

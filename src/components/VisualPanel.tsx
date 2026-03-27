@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import katex from "katex";
 import { SegmentData, VisualItem } from "@/types/lesson";
+import { normalizeMermaidCode } from "@/lib/mermaid";
 
 /* ─── Mermaid 单例初始化（只初始化一次）─────────────────────── */
 let mermaidInitialized = false;
@@ -137,8 +138,7 @@ function DiagramCard({ item }: { item: Extract<VisualItem, { type: "diagram" }> 
       try {
         const mermaid = await getMermaid();
         const id = `mermaid-${Math.random().toString(36).slice(2)}`;
-        // 兼容 JSON 字符串中 \n 和实际换行两种格式
-        const code = item.code.replace(/\\n/g, "\n");
+        const code = normalizeMermaidCode(item.code);
         const { svg: rendered } = await mermaid.render(id, code);
         if (!cancelled) setSvg(rendered);
       } catch (e) {
