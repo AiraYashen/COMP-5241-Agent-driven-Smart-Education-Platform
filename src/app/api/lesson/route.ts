@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { generateLessonPlan } from "@/lib/deepseek";
+import { getLessonSession } from "@/lib/lessonSession";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -11,10 +12,13 @@ function encodeSSE(event: string, data: unknown): string {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const question = searchParams.get("q");
+  const sid = searchParams.get("sid");
 
-  if (!question || question.trim().length === 0) {
+  const sessionPayload = sid ? getLessonSession(sid) : null;
+
+  if ((!question || question.trim().length === 0) && !sessionPayload) {
     return new Response(
-      encodeSSE("error", { message: "请输入问题" }),
+      encodeSSE("error", { message: "请提供学习主题或会话信息" }),
       { status: 400, headers: { "Content-Type": "text/event-stream" } }
     );
   }
@@ -30,7 +34,7 @@ export async function GET(request: NextRequest) {
       try {
         enqueue("loading", { message: "AI 老师正在备课..." });
 
-        const lessonPlan = await generateLessonPlan(question.trim());
+        const lessonPlan = await generateLessonPlan(sessionPayload ?? question!.trim());
 
         enqueue("title", { title: lessonPlan.title });
 
@@ -64,4 +68,23 @@ export async function GET(request: NextRequest) {
       "X-Accel-Buffering": "no",
     },
   });
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const sid = typeof body?.sid === "string" ? body.sid : "";
+    const question = typeof body?.question === "string" ? body.question.trim() : "";
+    const sessionPayload = sid ? getLessonSession(sid) : null;
+
+    if (!sessionPayload && !question) {
+      return Response.json({ error: "请提供学习主题或会话信息" }, { status: 400 });
+    }
+
+    const lessonPlan = await generateLessonPlan(sessionPayload ?? question);
+    return Response.json(lessonPlan);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "未知错误";
+    return Response.json({ error: message }, { status: 500 });
+  }
 }

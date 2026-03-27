@@ -12,11 +12,12 @@ export type { SegmentData };
 
 interface LessonPlayerProps {
   question: string;
+  sid?: string;
 }
 
 type SegmentState = "pending" | "speaking" | "waiting" | "understood" | "simplifying";
 
-export default function LessonPlayer({ question }: LessonPlayerProps) {
+export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   const [title, setTitle] = useState<string | null>(null);
   const allSegmentsRef = useRef<SegmentData[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
@@ -302,9 +303,12 @@ export default function LessonPlayer({ question }: LessonPlayerProps) {
 
   // SSE
   useEffect(() => {
-    if (!question) { setError("请输入问题"); setIsLoading(false); return; }
+    if (!question && !sid) { setError("请输入问题"); setIsLoading(false); return; }
     window.speechSynthesis.cancel();
-    const es = new EventSource(`/api/lesson?q=${encodeURIComponent(question)}`);
+    const apiUrl = sid
+      ? `/api/lesson?sid=${encodeURIComponent(sid)}`
+      : `/api/lesson?q=${encodeURIComponent(question)}`;
+    const es = new EventSource(apiUrl);
     es.addEventListener("loading", (e) => { setLoadingMessage(JSON.parse(e.data).message); });
     es.addEventListener("title", (e) => { setTitle(JSON.parse(e.data).title); setIsLoading(false); });
     es.addEventListener("segment", (e) => {
@@ -327,7 +331,7 @@ export default function LessonPlayer({ question }: LessonPlayerProps) {
       es.close();
     });
     return () => { es.close(); window.speechSynthesis.cancel(); };
-  }, [question, enqueueSegment]);
+  }, [question, sid, enqueueSegment]);
 
   if (error) {
     return (

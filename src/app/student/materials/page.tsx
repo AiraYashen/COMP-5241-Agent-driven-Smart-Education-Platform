@@ -48,6 +48,21 @@ export default function StudentMaterialsPage() {
     });
   };
 
+  const openAiLesson = async (material: any) => {
+    const res = await fetch("/api/lesson/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        knowledgePoint: material.title,
+        sourceText: `资料标题：${material.title}\n资料类型：${material.type ?? "未知"}`,
+        difficulty: "review",
+      }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data?.lessonUrl) window.open(data.lessonUrl, "_blank", "noopener,noreferrer");
+  };
+
   const types = ["ALL", ...Array.from(new Set(materials.map((m) => m.type)))];
   const filtered = filter === "ALL" ? materials : materials.filter((m) => m.type === filter);
 
@@ -114,15 +129,13 @@ export default function StudentMaterialsPage() {
                     查看
                   </a>
                 )}
-                <a
-                  href={`/lesson?q=${encodeURIComponent(m.title)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => openAiLesson(m)}
                   className="flex-1 text-center py-1.5 rounded-lg text-xs font-medium transition-all"
                   style={{ background: "var(--background)", border: "1px solid var(--card-border)", color: "var(--foreground)" }}
                 >
                   AI 微课
-                </a>
+                </button>
               </div>
             </Card>
           ))}

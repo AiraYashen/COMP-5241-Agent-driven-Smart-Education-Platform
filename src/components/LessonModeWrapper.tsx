@@ -13,9 +13,10 @@ const MODES: { key: Mode; label: string }[] = [
 
 interface Props {
   question: string;
+  sid?: string;
 }
 
-export default function LessonModeWrapper({ question }: Props) {
+export default function LessonModeWrapper({ question, sid }: Props) {
   const [mode, setMode] = useState<Mode | null>(null);
   const [textContent, setTextContent] = useState<string | null>(null);
   const [mindmapHtml, setMindmapHtml] = useState<string | null>(null);
@@ -41,17 +42,22 @@ export default function LessonModeWrapper({ question }: Props) {
     fetch("/api/lesson", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, sid }),
     })
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data?.error ?? "内容生成失败");
+        return data;
+      })
       .then((data) => {
         if (data?.segments) {
           const joined = data.segments.map((s: any) => `**${data.title ?? ""}**\n\n${s.text}`).join("\n\n---\n\n");
           setTextContent(joined);
         }
       })
+      .catch((err: Error) => setTextContent(err.message))
       .finally(() => setGeneratingText(false));
-  }, [mode, question, textContent]);
+  }, [mode, question, sid, textContent]);
 
   // Mindmap mode: generate mermaid
   useEffect(() => {
@@ -60,24 +66,29 @@ export default function LessonModeWrapper({ question }: Props) {
     fetch("/api/teacher/generate-mindmap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ topic: question }),
+      body: JSON.stringify({ content: question, sid }),
     })
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data?.error ?? "脑图生成失败");
+        return data;
+      })
       .then(async (data) => {
-        if (data?.mermaidCode) {
+        if (data?.code) {
           try {
             const mermaid = (await import("mermaid")).default;
             mermaid.initialize({ startOnLoad: false, theme: "base" });
             const id = `lmm_${Date.now()}`;
-            const { svg } = await mermaid.render(id, data.mermaidCode);
+            const { svg } = await mermaid.render(id, data.code);
             setMindmapHtml(svg);
           } catch {
             setMindmapHtml("<p style='color:#aaa'>脑图渲染失败</p>");
           }
         }
       })
+      .catch((err: Error) => setMindmapHtml(`<p style='color:#aaa'>${err.message}</p>`))
       .finally(() => setGeneratingMindmap(false));
-  }, [mode, question, mindmapHtml]);
+  }, [mode, question, sid, mindmapHtml]);
 
   if (mode === null) {
     // Waiting for hydration
@@ -109,7 +120,7 @@ export default function LessonModeWrapper({ question }: Props) {
       </div>
 
       {/* Content */}
-      {mode === "audio" && <LessonPlayer question={question} />}
+      {mode === "audio" && <LessonPlayer question={question} sid={sid} />}
 
       {mode === "text" && (
         <div className="flex-1 overflow-y-auto max-w-3xl mx-auto w-full px-6 py-8">

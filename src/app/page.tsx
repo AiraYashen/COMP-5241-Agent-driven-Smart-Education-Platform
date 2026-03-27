@@ -23,9 +23,9 @@ export default function HomePage() {
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400"> 讲堂</span>
         </h1>
         <p className="text-gray-400 text-xl max-w-lg mx-auto leading-relaxed">
-          输入任何问题，AI 老师将为你生动讲解
+          输入知识盲点或粘贴长文本，AI 自动生成定制微课
           <br />
-          <span className="text-gray-500 text-base">配有语音朗读、配图，以及实时字幕</span>
+          <span className="text-gray-500 text-base">支持预习 / 复习 / 拔高，含语音讲解与实时字幕</span>
         </p>
       </div>
 

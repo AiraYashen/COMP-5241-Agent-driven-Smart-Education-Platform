@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deepseekChat } from "@/lib/deepseek";
+import { createLessonSession } from "@/lib/lessonSession";
+
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   const { content } = await req.json();
@@ -25,7 +28,12 @@ export async function POST(req: NextRequest) {
     const text = await deepseekChat(messages);
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const { title, summary } = JSON.parse(cleaned);
-    const lessonUrl = `/lesson?q=${encodeURIComponent(title)}`;
+    const sid = createLessonSession({
+      sourceText: String(content),
+      knowledgePoint: String(title ?? ""),
+      difficulty: "review",
+    });
+    const lessonUrl = `/lesson?sid=${encodeURIComponent(sid)}&q=${encodeURIComponent(String(title ?? "学习专题"))}`;
     return NextResponse.json({ title, summary, lessonUrl });
   } catch (err: any) {
     return NextResponse.json({ error: err.message ?? "Preview generation failed" }, { status: 500 });

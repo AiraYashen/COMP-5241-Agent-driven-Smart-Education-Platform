@@ -1,9 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deepseekChat } from "@/lib/deepseek";
+import { getLessonSession } from "@/lib/lessonSession";
+
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const { content } = await req.json();
-  if (!content) return NextResponse.json({ error: "No content" }, { status: 400 });
+  const { content, sid, topic } = await req.json();
+  const sessionPayload = typeof sid === "string" && sid ? getLessonSession(sid) : null;
+  const effectiveContent =
+    (typeof content === "string" ? content : "") ||
+    (typeof topic === "string" ? topic : "") ||
+    sessionPayload?.sourceText ||
+    sessionPayload?.knowledgePoint ||
+    sessionPayload?.note ||
+    "";
+
+  if (!effectiveContent) return NextResponse.json({ error: "No content" }, { status: 400 });
 
   const messages = [
     {
@@ -30,7 +42,7 @@ mindmap
     },
     {
       role: "user" as const,
-      content: `请根据以下内容生成思维导图：\n\n${content}`,
+      content: `请根据以下内容生成思维导图：\n\n${effectiveContent}`,
     },
   ];
 
