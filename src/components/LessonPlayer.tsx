@@ -618,7 +618,7 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
           setCurrentIndex(-1);
           setTotalSegments(0);
 
-          setTitle(data.title ?? "AI 微课");
+          setTitle(data.title ?? "口袋课堂");
           setIsLoading(false);
           setError(null);
 

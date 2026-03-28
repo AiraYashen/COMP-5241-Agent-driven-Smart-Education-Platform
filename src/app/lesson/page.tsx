@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import LessonModeWrapper from "@/components/LessonModeWrapper";
 import SearchForm from "@/components/SearchForm";
+import BackButton from "@/components/BackButton";
 
 export default function LessonPage({
   searchParams,
@@ -30,8 +31,11 @@ async function LessonPageContent({
   if (!question && !sid) {
     return (
       <main className="min-h-screen bg-gray-950 px-4 py-10">
+        <div className="w-full max-w-6xl mx-auto mb-4">
+          <BackButton />
+        </div>
         <div className="w-full max-w-6xl mx-auto text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-3">AI 微课</h1>
+          <h1 className="text-3xl font-bold text-white mb-3">口袋课堂</h1>
           <p className="text-gray-400">先填写学习信息并生成微课，再进入讲解页面</p>
         </div>
         <div className="w-full max-w-6xl mx-auto">
