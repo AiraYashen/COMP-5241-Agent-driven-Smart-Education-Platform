@@ -3,9 +3,23 @@ import { deepseekChat } from "@/lib/deepseek";
 import { getScenario } from "@/lib/scenarios";
 import { createAdminClient } from "@/lib/supabase";
 
+// History entry: one completed chapter + what the student chose
+interface HistoryEntry {
+  chapter: object;       // full chapter JSON shown to the student
+  chosen_key: string;    // e.g. "A", "D"
+  chosen_label: string;  // e.g. "A" | "D（自定义文本）"
+  chosen_text: string;   // full text of the chosen option (empty string for non-D if text unavailable)
+}
+
+// Shape stored in choices_json column
+interface SessionHistory {
+  history: HistoryEntry[];
+  pending_chapter: object | null; // chapter currently displayed, awaiting a choice
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { action, scenarioId, studentId, sessionId, choiceKey } = await req.json();
+    const { action, scenarioId, studentId, sessionId, choiceKey, customText } = await req.json();
     const supabase = createAdminClient();
 
     if (action === "start") {
@@ -13,10 +27,15 @@ export async function POST(req: NextRequest) {
       const scenario = getScenario(scenarioId);
       if (!scenario) return NextResponse.json({ error: "Scenario not found" }, { status: 404 });
 
-      // Create DB session
+      // Create DB session (empty history, no pending chapter yet)
       const { data: sess, error: sessErr } = await supabase
         .from("scenario_sessions")
-        .insert({ student_id: studentId, scenario_id: scenarioId, choices_json: [], chapter_index: 0 })
+        .insert({
+          student_id: studentId,
+          scenario_id: scenarioId,
+          choices_json: { history: [], pending_chapter: null } as any,
+          chapter_index: 0,
+        })
         .select()
         .single();
       if (sessErr) return NextResponse.json({ error: sessErr.message }, { status: 500 });
@@ -29,6 +48,12 @@ export async function POST(req: NextRequest) {
       const text = await deepseekChat(messages, { max_tokens: 1200 });
       const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const chapter = JSON.parse(cleaned);
+
+      // Save chapter 1 as pending (awaiting student choice)
+      await supabase
+        .from("scenario_sessions")
+        .update({ choices_json: { history: [], pending_chapter: chapter } as any })
+        .eq("id", sess.id);
 
       return NextResponse.json({ sessionId: sess.id, chapter, totalChapters: scenario.chaptersHint });
     }
@@ -43,31 +68,60 @@ export async function POST(req: NextRequest) {
       const scenario = getScenario(sess.scenario_id);
       if (!scenario) return NextResponse.json({ error: "Scenario config missing" }, { status: 404 });
 
-      const choices: { chapter: number; choice: string }[] = sess.choices_json ?? [];
-      choices.push({ chapter: sess.chapter_index + 1, choice: choiceKey });
+      const sessionHistory: SessionHistory = sess.choices_json ?? { history: [], pending_chapter: null };
+      const pendingChapter = sessionHistory.pending_chapter as any;
 
-      const nextChapter = sess.chapter_index + 2;
-      const isFinal = nextChapter > scenario.chaptersHint;
+      // Find the full text of the chosen option from the pending chapter
+      const chosenOption = pendingChapter?.choices?.find((c: any) => c.key === choiceKey);
+      const chosenText = choiceKey === "D" && customText
+        ? customText
+        : (chosenOption?.text ?? "");
+      const chosenLabel = choiceKey === "D" && customText
+        ? `D（${customText}）`
+        : choiceKey;
 
-      // Build message history for continuity
-      const choiceSummary = choices.map((c) => `第${c.chapter}章选择：${c.choice}`).join("；");
-      const messages = [
-        { role: "system" as const, content: scenario.openingPrompt },
+      // Append this completed chapter + choice to history
+      const newHistory: HistoryEntry[] = [
+        ...sessionHistory.history,
         {
-          role: "user" as const,
-          content: `学生到目前为止的选择历史：${choiceSummary}。
-现在生成第${nextChapter}章。${isFinal ? '这是最后一章，请在叙事中给出学生选择的直接后果，并铺垫现实对比。设置 "is_final": true。' : ""}
-返回 JSON。`,
+          chapter: pendingChapter,
+          chosen_key: choiceKey,
+          chosen_label: chosenLabel,
+          chosen_text: chosenText,
         },
       ];
+
+      const nextChapterIndex = sess.chapter_index + 2;
+      const isFinal = nextChapterIndex > scenario.chaptersHint;
+
+      // Rebuild full multi-turn conversation so AI has complete context
+      const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+        { role: "system", content: scenario.openingPrompt },
+        { role: "user", content: `生成第1章的开场。这是情景的开始，要有沉浸式的引入。返回 JSON。` },
+      ];
+      for (const entry of newHistory) {
+        // AI's previous response (the chapter it generated)
+        messages.push({ role: "assistant", content: JSON.stringify(entry.chapter) });
+        // Student's choice as a user turn
+        const choiceDesc = entry.chosen_key === "D"
+          ? `学生选择了 D（自定义）：「${entry.chosen_text}」`
+          : `学生选择了 ${entry.chosen_key}：「${entry.chosen_text}」`;
+        const isThisTheFinalTurn = newHistory.indexOf(entry) === newHistory.length - 1;
+        const chapterNum = (entry.chapter as any).chapter + 1;
+        messages.push({
+          role: "user",
+          content: `${choiceDesc}。请根据这个选择，生成第${chapterNum}章，剧情要与学生的选择直接相关，体现这个选择的后果。${isThisTheFinalTurn && isFinal ? '这是最后一章，给出结局叙事，设置 "is_final": true，"choices" 设为空数组 []。' : ""}返回 JSON。`,
+        });
+      }
+
       const text = await deepseekChat(messages, { max_tokens: 1200 });
       const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const chapter = JSON.parse(cleaned);
 
-      // Update session
+      // Update session: save new history and new pending chapter
       await supabase.from("scenario_sessions").update({
-        choices_json: choices,
-        chapter_index: nextChapter - 1,
+        choices_json: { history: newHistory, pending_chapter: chapter } as any,
+        chapter_index: nextChapterIndex - 1,
       }).eq("id", sessionId);
 
       return NextResponse.json({ chapter, totalChapters: scenario.chaptersHint, isFinal });
@@ -82,8 +136,14 @@ export async function POST(req: NextRequest) {
       const scenario = getScenario(sess.scenario_id);
       if (!scenario) return NextResponse.json({ error: "Scenario config missing" }, { status: 404 });
 
-      const choices: { chapter: number; choice: string }[] = sess.choices_json ?? [];
-      const choiceSummary = choices.map((c) => `第${c.chapter}章选了${c.choice}`).join("，");
+      const sessionHistory: SessionHistory = sess.choices_json ?? { history: [], pending_chapter: null };
+      const choiceSummary = sessionHistory.history
+        .map((e) => {
+          const chNum = (e.chapter as any).chapter ?? "?";
+          const chTitle = (e.chapter as any).title ?? "";
+          return `第${chNum}章「${chTitle}」→ 选择了 ${e.chosen_label}：${e.chosen_text}`;
+        })
+        .join("；\n");
 
       const messages = [
         {
@@ -101,7 +161,8 @@ export async function POST(req: NextRequest) {
         {
           role: "user" as const,
           content: `情景：${scenario.title}
-学生选择记录：${choiceSummary}
+学生每章的选择记录：
+${choiceSummary}
 真实历史参考：${scenario.realHistoryFacts}
 请生成 Reality Sync 对比报告。`,
         },
@@ -121,3 +182,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message ?? "Server error" }, { status: 500 });
   }
 }
+
