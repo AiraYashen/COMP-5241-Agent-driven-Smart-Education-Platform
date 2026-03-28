@@ -8,10 +8,9 @@ export async function POST(req: NextRequest) {
 
   const sourceText = body.sourceText?.trim() ?? "";
   const knowledgePoint = body.knowledgePoint?.trim() ?? "";
-  const note = body.note?.trim() ?? "";
 
-  if (!sourceText && !knowledgePoint && !note) {
-    return NextResponse.json({ error: "请至少提供知识点、备注或正文材料" }, { status: 400 });
+  if (!sourceText && !knowledgePoint) {
+    return NextResponse.json({ error: "请至少选择知识点或提供补充材料" }, { status: 400 });
   }
 
   const sid = await createLessonSession({
@@ -19,14 +18,11 @@ export async function POST(req: NextRequest) {
     textbook: body.textbook?.trim(),
     chapter: body.chapter?.trim(),
     knowledgePoint,
-    note,
-    difficulty: body.difficulty ?? "review",
     sourceText,
   });
 
   const fallbackQuery =
     knowledgePoint ||
-    note ||
     (sourceText ? sourceText.slice(0, 30) : "") ||
     "学习专题";
 

@@ -314,3 +314,106 @@ on conflict do nothing;
 insert into academic_terms (name, term_start_date, term_end_date, is_active)
 select '2025-2026学年第二学期', '2026-02-23', '2026-07-10', true
 where not exists (select 1 from academic_terms where is_active = true);
+
+-- ============================================================
+--  课程体系 (口袋课堂用)
+-- ============================================================
+
+-- 22. lesson_subjects (学科)
+create table if not exists lesson_subjects (
+  id         serial primary key,
+  name       text not null unique,
+  sort_order int  not null default 0
+);
+
+insert into lesson_subjects (name, sort_order) values
+  ('高中语文',     1),
+  ('高中数学',     2),
+  ('高中英语',     3),
+  ('高中物理',     4),
+  ('高中化学',     5),
+  ('高中生物学',   6),
+  ('高中思想政治', 7),
+  ('高中历史',     8),
+  ('高中地理',     9)
+on conflict (name) do nothing;
+
+-- 23. lesson_textbooks (教材)
+create table if not exists lesson_textbooks (
+  id         serial primary key,
+  subject_id int  not null references lesson_subjects(id) on delete cascade,
+  name       text not null,
+  sort_order int  not null default 0,
+  unique(subject_id, name)
+);
+
+insert into lesson_textbooks (subject_id, name, sort_order)
+select s.id, t.name, t.sort_order
+from lesson_subjects s
+join (values
+  ('高中化学', '高中化学人教版必修第一册',              1),
+  ('高中化学', '高中化学人教版必修第二册',              2),
+  ('高中化学', '高中化学人教版选择性必修1 化学反应原理',3),
+  ('高中化学', '高中化学人教版选择性必修2 物质结构与性质',4),
+  ('高中化学', '高中化学人教版选择性必修3 有机化学基础',5)
+) as t(sname, name, sort_order) on s.name = t.sname
+on conflict (subject_id, name) do nothing;
+
+-- 24. lesson_chapters (章节)
+create table if not exists lesson_chapters (
+  id           serial primary key,
+  textbook_id  int  not null references lesson_textbooks(id) on delete cascade,
+  name         text not null,
+  sort_order   int  not null default 0,
+  unique(textbook_id, name)
+);
+
+insert into lesson_chapters (textbook_id, name, sort_order)
+select tb.id, c.name, c.sort_order
+from lesson_textbooks tb
+join lesson_subjects  s  on s.id = tb.subject_id
+join (values
+  ('高中化学', '高中化学人教版必修第二册', '第五章 化工生产中的重要非金属元素', 1),
+  ('高中化学', '高中化学人教版必修第二册', '第六章 化学反应与能量',             2),
+  ('高中化学', '高中化学人教版必修第二册', '第七章 有机化合物',                 3),
+  ('高中化学', '高中化学人教版必修第二册', '第八章 化学与可持续发展',           4)
+) as c(sname, tbname, name, sort_order)
+  on s.name = c.sname and tb.name = c.tbname
+on conflict (textbook_id, name) do nothing;
+
+-- 25. lesson_knowledge_points (知识点)
+create table if not exists lesson_knowledge_points (
+  id          serial primary key,
+  chapter_id  int  not null references lesson_chapters(id) on delete cascade,
+  name        text not null,
+  sort_order  int  not null default 0,
+  unique(chapter_id, name)
+);
+
+insert into lesson_knowledge_points (chapter_id, name, sort_order)
+select ch.id, k.name, k.sort_order
+from lesson_chapters  ch
+join lesson_textbooks tb on tb.id = ch.textbook_id
+join lesson_subjects  s  on s.id  = tb.subject_id
+join (values
+  ('高中化学','高中化学人教版必修第二册','第五章 化工生产中的重要非金属元素','第一节 硫及其化合物',              1),
+  ('高中化学','高中化学人教版必修第二册','第五章 化工生产中的重要非金属元素','第二节 氮及其化合物',              2),
+  ('高中化学','高中化学人教版必修第二册','第五章 化工生产中的重要非金属元素','第三节 无机非金属材料',            3),
+  ('高中化学','高中化学人教版必修第二册','第五章 化工生产中的重要非金属元素','实验活动4 用化学沉淀法去除粗盐中的杂质离子',4),
+  ('高中化学','高中化学人教版必修第二册','第五章 化工生产中的重要非金属元素','实验活动5 不同价态含硫物质的转化', 5),
+  ('高中化学','高中化学人教版必修第二册','第六章 化学反应与能量',             '第一节 化学反应与能量变化',        1),
+  ('高中化学','高中化学人教版必修第二册','第六章 化学反应与能量',             '第二节 化学反应的速率与限度',      2),
+  ('高中化学','高中化学人教版必修第二册','第六章 化学反应与能量',             '实验活动6 化学能转化成电能',       3),
+  ('高中化学','高中化学人教版必修第二册','第六章 化学反应与能量',             '实验活动7 化学反应速率的影响因素', 4),
+  ('高中化学','高中化学人教版必修第二册','第七章 有机化合物',                 '第一节 认识有机化合物',            1),
+  ('高中化学','高中化学人教版必修第二册','第七章 有机化合物',                 '第二节 乙烯与有机高分子材料',      2),
+  ('高中化学','高中化学人教版必修第二册','第七章 有机化合物',                 '第三节 乙醇与乙酸',               3),
+  ('高中化学','高中化学人教版必修第二册','第七章 有机化合物',                 '第四节 基本营养物质',             4),
+  ('高中化学','高中化学人教版必修第二册','第七章 有机化合物',                 '实验活动8 搭建球棍模型认识有机化合物分子结构的特点',5),
+  ('高中化学','高中化学人教版必修第二册','第七章 有机化合物',                 '实验活动9 乙醇、乙酸的主要性质',  6),
+  ('高中化学','高中化学人教版必修第二册','第八章 化学与可持续发展',           '第一节 自然资源的开发利用',        1),
+  ('高中化学','高中化学人教版必修第二册','第八章 化学与可持续发展',           '第二节 化学品的合理使用',          2),
+  ('高中化学','高中化学人教版必修第二册','第八章 化学与可持续发展',           '第三节 环境保护与绿色化学',        3)
+) as k(sname, tbname, chname, name, sort_order)
+  on s.name = k.sname and tb.name = k.tbname and ch.name = k.chname
+on conflict (chapter_id, name) do nothing;

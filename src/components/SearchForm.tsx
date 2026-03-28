@@ -1,20 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   clearLessonHistory,
   getLessonHistory,
-  LessonDifficulty,
   LessonHistoryItem,
   saveLessonHistory,
 } from "@/lib/lessonHistory";
 
-const difficultyLabelMap: Record<LessonDifficulty, string> = {
-  preview: "预习",
-  review: "复习",
-  advanced: "拔高",
-};
+interface Option { id: number; name: string }
+
+// 高中化学在数据库中的 subject_id（与 sort_order=5 对应，实际值由 DB 决定，前端动态查询）
+const CHEMISTRY_AVAILABLE_SUBJECT = "高中化学";
+
+const selectCls =
+  "w-full bg-slate-950/60 text-white px-3 py-2 rounded-lg border border-white/10 outline-none focus:border-indigo-400/50 disabled:opacity-40 disabled:cursor-not-allowed";
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleString("zh-CN", {
@@ -27,24 +28,91 @@ function formatTime(ts: number) {
 
 export default function SearchForm() {
   const router = useRouter();
-  const [subject, setSubject] = useState("");
-  const [textbook, setTextbook] = useState("");
-  const [chapter, setChapter] = useState("");
-  const [knowledgePoint, setKnowledgePoint] = useState("");
-  const [note, setNote] = useState("");
+
+  // --- 级联选择状态 ---
+  const [subjects, setSubjects] = useState<Option[]>([]);
+  const [textbooks, setTextbooks] = useState<Option[]>([]);
+  const [chapters, setChapters] = useState<Option[]>([]);
+  const [points, setPoints] = useState<Option[]>([]);
+
+  const [subjectId, setSubjectId] = useState<string>("");
+  const [textbookId, setTextbookId] = useState<string>("");
+  const [chapterId, setChapterId] = useState<string>("");
+  const [pointId, setPointId] = useState<string>("");
+
+  // 显示名（提交给后端）
+  const [subjectName, setSubjectName] = useState("");
+  const [textbookName, setTextbookName] = useState("");
+  const [chapterName, setChapterName] = useState("");
+  const [pointName, setPointName] = useState("");
+
   const [sourceText, setSourceText] = useState("");
-  const [difficulty, setDifficulty] = useState<"preview" | "review" | "advanced">("review");
   const [isLoading, setIsLoading] = useState(false);
   const [history, setHistory] = useState<LessonHistoryItem[]>([]);
 
+  // 当前选中学科是否已开发
+  const isDeveloped = subjectName === CHEMISTRY_AVAILABLE_SUBJECT;
+
+  // 加载历史
+  useEffect(() => { setHistory(getLessonHistory()); }, []);
+
+  // 加载学科列表
   useEffect(() => {
-    setHistory(getLessonHistory());
+    fetch("/api/lesson/curriculum?level=subjects")
+      .then((r) => r.json())
+      .then(setSubjects)
+      .catch(() => {});
   }, []);
 
-  const canSubmit = useMemo(
-    () => Boolean(knowledgePoint.trim() || note.trim() || sourceText.trim()),
-    [knowledgePoint, note, sourceText]
-  );
+  // 切换学科 → 清空下游
+  const handleSubjectChange = (id: string) => {
+    const found = subjects.find((s) => String(s.id) === id);
+    setSubjectId(id);
+    setSubjectName(found?.name ?? "");
+    setTextbooks([]); setTextbookId(""); setTextbookName("");
+    setChapters([]);  setChapterId("");  setChapterName("");
+    setPoints([]);    setPointId("");    setPointName("");
+    if (!id) return;
+    fetch(`/api/lesson/curriculum?level=textbooks&subjectId=${id}`)
+      .then((r) => r.json())
+      .then(setTextbooks)
+      .catch(() => {});
+  };
+
+  // 切换教材 → 清空下游
+  const handleTextbookChange = (id: string) => {
+    const found = textbooks.find((t) => String(t.id) === id);
+    setTextbookId(id);
+    setTextbookName(found?.name ?? "");
+    setChapters([]); setChapterId(""); setChapterName("");
+    setPoints([]);   setPointId("");   setPointName("");
+    if (!id) return;
+    fetch(`/api/lesson/curriculum?level=chapters&textbookId=${id}`)
+      .then((r) => r.json())
+      .then(setChapters)
+      .catch(() => {});
+  };
+
+  // 切换章节 → 清空下游
+  const handleChapterChange = (id: string) => {
+    const found = chapters.find((c) => String(c.id) === id);
+    setChapterId(id);
+    setChapterName(found?.name ?? "");
+    setPoints([]);  setPointId("");  setPointName("");
+    if (!id) return;
+    fetch(`/api/lesson/curriculum?level=points&chapterId=${id}`)
+      .then((r) => r.json())
+      .then(setPoints)
+      .catch(() => {});
+  };
+
+  const handlePointChange = (id: string) => {
+    const found = points.find((p) => String(p.id) === id);
+    setPointId(id);
+    setPointName(found?.name ?? "");
+  };
+
+  const canSubmit = Boolean(pointName.trim() || sourceText.trim());
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -54,35 +122,24 @@ export default function SearchForm() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        subject,
-        textbook,
-        chapter,
-        knowledgePoint,
-        note,
+        subject: subjectName,
+        textbook: textbookName,
+        chapter: chapterName,
+        knowledgePoint: pointName,
         sourceText,
-        difficulty,
       }),
     });
-    if (!res.ok) {
-      setIsLoading(false);
-      return;
-    }
+    if (!res.ok) { setIsLoading(false); return; }
     const data = await res.json();
-    if (!data?.lessonUrl) {
-      setIsLoading(false);
-      return;
-    }
+    if (!data?.lessonUrl) { setIsLoading(false); return; }
 
-    const title =
-      knowledgePoint.trim() ||
-      note.trim() ||
-      (sourceText.trim() ? `${sourceText.trim().slice(0, 20)}...` : "学习专题");
+    const title = pointName.trim() || (sourceText.trim() ? `${sourceText.trim().slice(0, 20)}...` : "学习专题");
     const nextHistory = saveLessonHistory({
       lessonUrl: data.lessonUrl,
       title,
-      subject: subject.trim() || undefined,
-      chapter: chapter.trim() || undefined,
-      difficulty,
+      subject: subjectName || undefined,
+      chapter: chapterName || undefined,
+      difficulty: "review",
     });
     setHistory(nextHistory);
     router.push(data.lessonUrl);
@@ -92,94 +149,114 @@ export default function SearchForm() {
     <div className="w-full max-w-6xl mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)] gap-6">
       <form onSubmit={handleSubmit} className="bg-slate-900/70 border border-white/10 rounded-2xl p-5 space-y-4">
         <div>
-          <h2 className="text-white text-lg font-semibold">创建新微课</h2>
-          <p className="text-gray-400 text-sm mt-1">填写核心信息后即可生成，支持长文本材料。</p>
+          <h2 className="text-white text-lg font-semibold">创建新课程</h2>
+          <p className="text-gray-400 text-sm mt-1">逐级选择学科信息，选定知识点后即可生成讲解。</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="学科（如数学）" className="bg-slate-950/60 text-white placeholder-gray-500 px-3 py-2 rounded-lg border border-white/10 outline-none focus:border-indigo-400/50" />
-          <input value={textbook} onChange={(e) => setTextbook(e.target.value)} placeholder="教材（如人教版高中数学1）" className="bg-slate-950/60 text-white placeholder-gray-500 px-3 py-2 rounded-lg border border-white/10 outline-none focus:border-indigo-400/50" />
-          <input value={chapter} onChange={(e) => setChapter(e.target.value)} placeholder="章节（如第五章第一节）" className="bg-slate-950/60 text-white placeholder-gray-500 px-3 py-2 rounded-lg border border-white/10 outline-none focus:border-indigo-400/50" />
+        {/* 学科 */}
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">学科</label>
+          <select value={subjectId} onChange={(e) => handleSubjectChange(e.target.value)} className={selectCls}>
+            <option value="" style={{ color: "#9ca3af" }}>请选择学科</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={String(s.id)} style={{ color: "#111827" }}>{s.name}</option>
+            ))}
+          </select>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <input value={knowledgePoint} onChange={(e) => setKnowledgePoint(e.target.value)} placeholder="知识点（如双曲线）" className="bg-slate-950/60 text-white placeholder-gray-500 px-3 py-2 rounded-lg border border-white/10 outline-none focus:border-indigo-400/50" />
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="备注（如中点弦问题）" className="bg-slate-950/60 text-white placeholder-gray-500 px-3 py-2 rounded-lg border border-white/10 outline-none focus:border-indigo-400/50" />
+
+        {/* 待开发提示 */}
+        {subjectId && !isDeveloped && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-400/20 text-amber-300 text-sm">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
+            </svg>
+            该学科课程体系正在建设中，敬请期待
+          </div>
+        )}
+
+        {/* 教材（仅已开发学科展示） */}
+        {isDeveloped && (
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">教材</label>
+            <select value={textbookId} onChange={(e) => handleTextbookChange(e.target.value)} className={selectCls}>
+              <option value="" style={{ color: "#9ca3af" }}>请选择教材</option>
+              {textbooks.map((t) => (
+                <option key={t.id} value={String(t.id)} style={{ color: "#111827" }}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* 章节 */}
+        {isDeveloped && textbookId && (
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">章节</label>
+            <select value={chapterId} onChange={(e) => handleChapterChange(e.target.value)} className={selectCls} disabled={chapters.length === 0}>
+              <option value="" style={{ color: "#9ca3af" }}>{chapters.length === 0 ? "暂无数据" : "请选择章节"}</option>
+              {chapters.map((c) => (
+                <option key={c.id} value={String(c.id)} style={{ color: "#111827" }}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* 知识点 */}
+        {isDeveloped && chapterId && (
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">知识点</label>
+            <select value={pointId} onChange={(e) => handlePointChange(e.target.value)} className={selectCls} disabled={points.length === 0}>
+              <option value="" style={{ color: "#9ca3af" }}>{points.length === 0 ? "暂无数据" : "请选择知识点"}</option>
+              {points.map((p) => (
+                <option key={p.id} value={String(p.id)} style={{ color: "#111827" }}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* 补充材料 */}
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">补充材料（可选）</label>
+          <textarea
+            value={sourceText}
+            onChange={(e) => setSourceText(e.target.value)}
+            placeholder="可粘贴教材正文、讲义、知识点说明（支持长文本）"
+            rows={5}
+            disabled={isLoading}
+            className="w-full bg-slate-950/60 text-white placeholder-gray-500 px-3 py-2 rounded-lg border border-white/10 outline-none disabled:opacity-50 resize-y focus:border-indigo-400/50"
+          />
         </div>
-        <select
-          value={difficulty}
-          onChange={(e) => setDifficulty(e.target.value as "preview" | "review" | "advanced")}
-          className="w-full bg-slate-950/60 text-white px-3 py-2 rounded-lg border border-white/10 outline-none focus:border-indigo-400/50"
-        >
-          <option value="preview" style={{ color: "#111827" }}>预习</option>
-          <option value="review" style={{ color: "#111827" }}>复习</option>
-          <option value="advanced" style={{ color: "#111827" }}>拔高</option>
-        </select>
-        <textarea
-          value={sourceText}
-          onChange={(e) => setSourceText(e.target.value)}
-          placeholder="可粘贴一大段教材正文、讲义、知识点说明（支持长文本）"
-          rows={7}
-          disabled={isLoading}
-          className="w-full bg-slate-950/60 text-white placeholder-gray-500 px-3 py-2 rounded-lg border border-white/10 outline-none disabled:opacity-50 resize-y focus:border-indigo-400/50"
-        />
+
         <button
           type="submit"
           disabled={isLoading || !canSubmit}
-          className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2"
+          className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              正在生成微课
+              正在生成课程
             </>
           ) : (
             <>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
-              生成微课
+              生成课程
             </>
           )}
         </button>
-
-        <div className="pt-1">
-          <div className="text-xs text-gray-500 mb-2">常用模板</div>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { kp: "双曲线", noteText: "中点弦问题", diff: "review" as const },
-              { kp: "导数", noteText: "切线与单调性", diff: "preview" as const },
-              { kp: "函数零点", noteText: "参数分类讨论", diff: "advanced" as const },
-            ].map((example) => (
-              <button
-                key={example.kp + example.noteText}
-                type="button"
-                onClick={() => {
-                  setKnowledgePoint(example.kp);
-                  setNote(example.noteText);
-                  setDifficulty(example.diff);
-                }}
-                className="px-3 py-1.5 text-sm text-gray-300 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all duration-200"
-              >
-                {example.kp} · {example.noteText}
-              </button>
-            ))}
-          </div>
-        </div>
       </form>
 
       <aside className="bg-slate-900/55 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[360px]">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-white font-semibold">历史微课</h3>
-            <p className="text-xs text-gray-500 mt-0.5">保存你之前生成的微课入口</p>
+            <h3 className="text-white font-semibold">历史课程</h3>
+            <p className="text-xs text-gray-500 mt-0.5">保存你之前生成的课程入口</p>
           </div>
           {history.length > 0 && (
             <button
               type="button"
-              onClick={() => {
-                clearLessonHistory();
-                setHistory([]);
-              }}
+              onClick={() => { clearLessonHistory(); setHistory([]); }}
               className="text-xs text-gray-400 hover:text-gray-200 transition-colors"
             >
               清空
@@ -189,7 +266,7 @@ export default function SearchForm() {
 
         {history.length === 0 ? (
           <div className="flex-1 rounded-xl border border-dashed border-white/10 text-gray-500 text-sm flex items-center justify-center px-6 text-center">
-            暂无历史微课。生成后会自动出现在这里。
+            暂无历史课程。生成后会自动出现在这里。
           </div>
         ) : (
           <div className="space-y-2 overflow-y-auto pr-1">
@@ -204,8 +281,7 @@ export default function SearchForm() {
                   <div className="min-w-0">
                     <div className="text-sm text-white font-medium truncate">{item.title}</div>
                     <div className="text-xs text-gray-400 mt-1">
-                      {difficultyLabelMap[item.difficulty]}
-                      {item.subject ? ` · ${item.subject}` : ""}
+                      {item.subject ? item.subject : ""}
                       {item.chapter ? ` · ${item.chapter}` : ""}
                     </div>
                   </div>
