@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { getScenario, ScenarioConfig } from "@/lib/scenarios";
-import { useSession } from "next-auth/react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 interface Chapter {
   chapter: number;
@@ -22,16 +20,25 @@ interface RealitySyncReport {
   score: number;
 }
 
+interface ScenarioMeta {
+  title: string;
+  subjectIcon: string;
+  role: string;
+  narratorName: string;
+  totalChapters: number;
+  saveName: string;
+}
+
 export default function ScenarioSimPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const scenario = getScenario(id) as ScenarioConfig | undefined;
 
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const sessionId = searchParams.get("session");
+
+  const [meta, setMeta] = useState<ScenarioMeta | null>(null);
   const [chapter, setChapter] = useState<Chapter | null>(null);
-  const [totalChapters, setTotalChapters] = useState(5);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [choosing, setChoosing] = useState(false);
   const [displayedText, setDisplayedText] = useState("");
   const [textDone, setTextDone] = useState(false);
@@ -39,9 +46,18 @@ export default function ScenarioSimPage() {
   const [showReport, setShowReport] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [customInput, setCustomInput] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const textRef = useRef("");
+
+  // Redirect to hub if no session param
+  useEffect(() => {
+    if (!sessionId) {
+      router.replace("/student/scenario");
+    }
+  }, [sessionId, router]);
 
   // Typewriter effect
   useEffect(() => {
@@ -62,23 +78,38 @@ export default function ScenarioSimPage() {
     return () => clearInterval(iv);
   }, [chapter]);
 
-  // Start scenario
+  // Load session on mount
   useEffect(() => {
-    if (!scenario || !session?.user?.id) return;
+    if (!sessionId) return;
     setLoading(true);
     fetch("/api/student/scenario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "start", scenarioId: id, studentId: session.user.id }),
+      body: JSON.stringify({ action: "load", sessionId }),
     })
       .then((r) => r.json())
       .then((d) => {
-        setSessionId(d.sessionId);
+        if (d.error) { setNotFound(true); return; }
+        setMeta({
+          title: d.scenarioTitle ?? "",
+          subjectIcon: d.scenarioSubjectIcon ?? "历",
+          role: d.scenarioRole ?? "",
+          narratorName: d.scenarioNarratorName ?? "",
+          totalChapters: d.totalChapters ?? 5,
+          saveName: d.saveName ?? "",
+        });
         setChapter(d.chapter);
-        setTotalChapters(d.totalChapters ?? 5);
+        setImageUrl(d.imageUrl ?? null);
+        if (d.completed) {
+          setIsGameOver(true);
+          if (d.report) {
+            setReport(d.report);
+          }
+        }
       })
+      .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
-  }, [scenario, session?.user?.id]);
+  }, [sessionId]);
 
   const makeChoice = async (choiceKey: string, customText?: string) => {
     if (!sessionId) return;
@@ -92,10 +123,10 @@ export default function ScenarioSimPage() {
     });
     const data = await res.json();
     setChapter(data.chapter);
+    setImageUrl(data.imageUrl ?? null);
     if (data.isFinal) {
       setIsGameOver(true);
       setLoadingReport(true);
-      // Get reality sync
       const r2 = await fetch("/api/student/scenario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,10 +139,17 @@ export default function ScenarioSimPage() {
     setChoosing(false);
   };
 
-  if (!scenario) {
+  if (!sessionId) return null;
+
+  if (notFound) {
     return (
       <div className="flex items-center justify-center min-h-screen text-white bg-slate-900">
-        <p>情景未找到 <button className="underline" onClick={() => router.back()}>返回</button></p>
+        <div className="text-center">
+          <p className="text-xl mb-4">存档不存在或已失效</p>
+          <button className="px-4 py-2 bg-indigo-600 rounded-lg" onClick={() => router.push("/student/scenario")}>
+            返回大厅
+          </button>
+        </div>
       </div>
     );
   }
@@ -120,22 +158,29 @@ export default function ScenarioSimPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-indigo-950 text-white gap-4">
         <div className="animate-spin w-10 h-10 border-4 border-white/30 border-t-white rounded-full" />
-        <p className="text-slate-300">正在启动时空之门…</p>
+        <p className="text-slate-300">正在打开时空之门…</p>
       </div>
     );
   }
+
+  const totalChapters = meta?.totalChapters ?? 5;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-950 to-slate-900 flex flex-col">
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-white/10">
-        <button onClick={() => router.back()} className="text-slate-400 hover:text-white text-sm">← 退出模拟</button>
+        <button onClick={() => router.push("/student/scenario")} className="text-slate-400 hover:text-white text-sm">
+          ← 退出模拟
+        </button>
         <div className="text-center">
-          <span className="text-white font-semibold">{scenario.subjectIcon} {scenario.title}</span>
+          <span className="text-white font-semibold">
+            {meta?.subjectIcon} {meta?.title}
+          </span>
+          {meta?.saveName && (
+            <span className="ml-2 text-xs text-slate-500">{meta.saveName}</span>
+          )}
         </div>
-        <div className="text-slate-400 text-sm">
-          {scenario.role}
-        </div>
+        <div className="text-slate-400 text-sm">{meta?.role}</div>
       </div>
 
       {/* Chapter progress */}
@@ -163,7 +208,21 @@ export default function ScenarioSimPage() {
           {chapter && (
             <>
               <h2 className="text-2xl font-bold text-white">{chapter.title}</h2>
-              <p className="text-xs text-slate-500 uppercase tracking-widest">— {scenario.narratorName}</p>
+              <p className="text-xs text-slate-500 uppercase tracking-widest">
+                — {meta?.narratorName}
+              </p>
+              {imageUrl && (
+                <div className="w-full rounded-xl overflow-hidden border border-white/10 bg-white/5" style={{ maxHeight: 240 }}>
+                  <img
+                    key={imageUrl}
+                    src={imageUrl}
+                    alt={chapter.title}
+                    className="w-full h-full object-cover transition-opacity duration-500"
+                    style={{ maxHeight: 240 }}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                </div>
+              )}
               <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-slate-200 leading-loose text-base min-h-[180px]">
                 {displayedText}
                 {!textDone && <span className="animate-pulse">▌</span>}
@@ -178,7 +237,6 @@ export default function ScenarioSimPage() {
         {/* Choices panel */}
         <div className="lg:w-80 px-6 py-6 flex flex-col gap-4 border-l border-white/10">
           {isGameOver ? (
-            /* End-of-game: lock choices, show actions only */
             <>
               <div className="flex flex-col items-center justify-center flex-1 gap-6 py-8 text-center">
                 <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
@@ -197,12 +255,14 @@ export default function ScenarioSimPage() {
                   </div>
                 ) : (
                   <>
-                    <button
-                      onClick={() => setShowReport(true)}
-                      className="w-full px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition"
-                    >
-                      查看 Reality Sync 报告
-                    </button>
+                    {report && (
+                      <button
+                        onClick={() => setShowReport(true)}
+                        className="w-full px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition"
+                      >
+                        查看 Reality Sync 报告
+                      </button>
+                    )}
                     <button
                       onClick={() => router.push("/student/scenario")}
                       className="w-full px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition"
@@ -283,7 +343,7 @@ export default function ScenarioSimPage() {
       {/* Reality Sync Modal */}
       {showReport && report && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl max-w-2xl w-full p-8 space-y-5">
+          <div className="bg-slate-800 rounded-2xl max-w-2xl w-full p-8 space-y-5 overflow-y-auto max-h-[90vh]">
             <h2 className="text-2xl font-bold text-white text-center">Reality Sync 现实对比</h2>
             <div className="text-center">
               <span className="text-5xl font-black text-indigo-400">{report.score}</span>
@@ -312,7 +372,7 @@ export default function ScenarioSimPage() {
                 onClick={() => router.push("/student/scenario")}
                 className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
               >
-                探索其他情景
+                返回大厅
               </button>
               <button
                 onClick={() => setShowReport(false)}

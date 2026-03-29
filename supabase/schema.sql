@@ -208,7 +208,32 @@ create table if not exists scenario_sessions (
   choices_json  jsonb default '[]',
   chapter_index int default 0,
   completed     boolean default false,
+  save_name     text,
+  report_json   jsonb,
   created_at    timestamptz default now()
+);
+
+-- Add save columns to existing scenario_sessions table (safe if already exists)
+alter table scenario_sessions add column if not exists save_name text;
+alter table scenario_sessions add column if not exists report_json jsonb;
+
+-- 22. scenario_themes (teacher-curated simulation themes)
+create table if not exists scenario_themes (
+  id             uuid primary key default gen_random_uuid(),
+  teacher_id     uuid references users(id) on delete cascade,
+  title          text not null,
+  subject        text not null default '历史',
+  subject_icon   text not null default '历',
+  era            text not null,
+  role_name      text not null,
+  narrator_name  text not null,
+  difficulty     text default '中级' check (difficulty in ('初级', '中级', '高级')),
+  description    text,
+  background     text,
+  real_history   text,
+  chapters_hint  int default 5,
+  is_active      boolean default true,
+  created_at     timestamptz default now()
 );
 
 -- 19. ai_assistants (per-class AI TA configuration)

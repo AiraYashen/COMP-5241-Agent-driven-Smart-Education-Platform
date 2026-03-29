@@ -43,8 +43,13 @@ export const SCENARIOS: ScenarioConfig[] = [
 {
   "chapter": 章节序号,
   "title": "本章标题（8字以内）",
+  "title_en": "标题的英文翻译（简洁准确，如 Cannon Battle at Sea, Arrival at Malacca）",
   "narrative": "叙事内容（150-200字，生动的情景描述）",
   "narrator_hint": "旁白提示（50字以内，引导思考的问题）",
+  "image_keywords": ["关键词1","关键词2","关键词3","关键词4","关键词5"],
+  // image_keywords 规则：根据本章narrative内容和标题，提炼5个英文关键词，按重要性排序（最核心的放最前）。
+  // 必须使用具体的历史专有名词（人名、地名、事件名、器物名），禁止笼统词如 history, ancient, Chinese, ship。
+  // 例：["Chen Zuyi","Strait of Malacca","pirate fleet","naval battle","gunpowder cannon"],
   "choices": [
     {"key": "A", "text": "选项内容（20字以内）", "hint": "战略倾向（10字以内）"},
     {"key": "B", "text": "选项内容", "hint": "战略倾向"},
