@@ -26,7 +26,7 @@ export async function synthesizeSpeech(text: string): Promise<TTSResult> {
         model: "cosyvoice-v1",
         input: { text },
         parameters: {
-          voice: "longxiaochun",
+          voice: "longxiaoxia",
           format: "mp3",
           sample_rate: 22050,
           volume: 70,
