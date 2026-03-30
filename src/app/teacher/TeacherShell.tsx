@@ -55,7 +55,8 @@ export default function TeacherShell({ children, session }: { children: React.Re
     "/teacher/scenario-analytics": t("nav.scenarioAnalytics"),
     "/teacher/scenario-themes": "情景主题",
     "/teacher/ai-chat": t("nav.aiChat"),
-    "/teacher/ai-ta": t("nav.aiTa"),
+    "/teacher/ai-ta": "捏个导师",
+    "/teacher/knowledge-reference": "口袋课堂参考书",
   };
   const items = navItems.map((n) => ({ ...n, label: navKeys[n.href] ?? n.label }));
   return (
