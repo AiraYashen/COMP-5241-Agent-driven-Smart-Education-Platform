@@ -161,7 +161,7 @@ export default function Sidebar({ items, userRole, userName }: SidebarProps) {
         </button>
         {/* Logout */}
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => signOut({ redirectTo: "/login" })}
           title="退出登录"
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm transition-all text-left"
           style={{ color: "var(--sidebar-text)", opacity: 0.7 }}
