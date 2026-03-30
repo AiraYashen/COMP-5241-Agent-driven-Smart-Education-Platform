@@ -197,7 +197,7 @@ export default function ScenarioSimPage() {
           );
         })}
         <span className="text-slate-400 text-xs ml-2 whitespace-nowrap">
-          第 {chapter?.chapter ?? 1}/{totalChapters} 章
+          {(chapter?.chapter ?? 1) > totalChapters ? "终章" : `第 ${chapter?.chapter ?? 1}/${totalChapters} 章`}
         </span>
       </div>
 
