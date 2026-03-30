@@ -11,8 +11,8 @@ import {
 
 interface Option { id: number; name: string }
 
-// 高中化学在数据库中的 subject_id（与 sort_order=5 对应，实际值由 DB 决定，前端动态查询）
-const CHEMISTRY_AVAILABLE_SUBJECT = "高中化学";
+// 已完整录入课程体系的学科
+const DEVELOPED_SUBJECTS = new Set(["高中化学", "高中生物学"]);
 
 const selectCls =
   "w-full bg-slate-950/60 text-white px-3 py-2 rounded-lg border border-white/10 outline-none focus:border-indigo-400/50 disabled:opacity-40 disabled:cursor-not-allowed";
@@ -51,7 +51,7 @@ export default function SearchForm() {
   const [history, setHistory] = useState<LessonHistoryItem[]>([]);
 
   // 当前选中学科是否已开发
-  const isDeveloped = subjectName === CHEMISTRY_AVAILABLE_SUBJECT;
+  const isDeveloped = DEVELOPED_SUBJECTS.has(subjectName);
 
   // 加载历史
   useEffect(() => { setHistory(getLessonHistory()); }, []);

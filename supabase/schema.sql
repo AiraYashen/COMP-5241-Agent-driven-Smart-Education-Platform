@@ -442,3 +442,61 @@ join (values
 ) as k(sname, tbname, chname, name, sort_order)
   on s.name = k.sname and tb.name = k.tbname and ch.name = k.chname
 on conflict (chapter_id, name) do nothing;
+
+-- ============================================================
+--  高中生物学 数据
+-- ============================================================
+
+-- 教材
+insert into lesson_textbooks (subject_id, name, sort_order)
+select s.id, t.name, t.sort_order
+from lesson_subjects s
+join (values
+  ('高中生物学', '高中生物学人教版必修1 分子与细胞',         1),
+  ('高中生物学', '高中生物学人教版必修2 遗传与进化',         2),
+  ('高中生物学', '高中生物学人教版选择性必修1 稳态与调节',   3),
+  ('高中生物学', '高中生物学人教版选择性必修2 生物与环境',   4),
+  ('高中生物学', '高中生物学人教版选择性必修3 生物技术与工程',5)
+) as t(sname, name, sort_order) on s.name = t.sname
+on conflict (subject_id, name) do nothing;
+
+-- 章节（选择性必修2 生物与环境）
+insert into lesson_chapters (textbook_id, name, sort_order)
+select tb.id, c.name, c.sort_order
+from lesson_textbooks tb
+join lesson_subjects  s  on s.id = tb.subject_id
+join (values
+  ('高中生物学', '高中生物学人教版选择性必修2 生物与环境', '第1章 种群及其动态',       1),
+  ('高中生物学', '高中生物学人教版选择性必修2 生物与环境', '第2章 群落及其演替',       2),
+  ('高中生物学', '高中生物学人教版选择性必修2 生物与环境', '第3章 生态系统及其稳定性', 3),
+  ('高中生物学', '高中生物学人教版选择性必修2 生物与环境', '第4章 人与环境',           4)
+) as c(sname, tbname, name, sort_order)
+  on s.name = c.sname and tb.name = c.tbname
+on conflict (textbook_id, name) do nothing;
+
+-- 知识点（选择性必修2 生物与环境）
+insert into lesson_knowledge_points (chapter_id, name, sort_order)
+select ch.id, k.name, k.sort_order
+from lesson_chapters  ch
+join lesson_textbooks tb on tb.id = ch.textbook_id
+join lesson_subjects  s  on s.id  = tb.subject_id
+join (values
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第1章 种群及其动态',       '第1节 种群的数量特征',   1),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第1章 种群及其动态',       '第2节 种群数量的变化',   2),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第1章 种群及其动态',       '第3节 影响种群数量变化的因素', 3),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第2章 群落及其演替',       '第1节 群落的结构',       1),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第2章 群落及其演替',       '第2节 群落的主要类型',   2),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第2章 群落及其演替',       '第3节 群落的演替',       3),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第3章 生态系统及其稳定性', '第1节 生态系统的结构',   1),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第3章 生态系统及其稳定性', '第2节 生态系统的能量流动', 2),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第3章 生态系统及其稳定性', '第3节 生态系统的物质循环', 3),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第3章 生态系统及其稳定性', '第4节 生态系统的信息传递', 4),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第3章 生态系统及其稳定性', '第5节 生态系统的稳定性', 5),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第4章 人与环境',           '第1节 人类活动对生态环境的影响', 1),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第4章 人与环境',           '第2节 生物多样性及其保护', 2),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第4章 人与环境',           '第3节 生态工程',          3),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第4章 人与环境',           '一 生态工程的基本原理',   4),
+  ('高中生物学','高中生物学人教版选择性必修2 生物与环境','第4章 人与环境',           '二 生态工程的实例和发展前景', 5)
+) as k(sname, tbname, chname, name, sort_order)
+  on s.name = k.sname and tb.name = k.tbname and ch.name = k.chname
+on conflict (chapter_id, name) do nothing;
