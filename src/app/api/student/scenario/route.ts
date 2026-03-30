@@ -3,6 +3,8 @@ import { deepseekChat } from "@/lib/deepseek";
 import { getScenario, ScenarioConfig } from "@/lib/scenarios";
 import { createAdminClient } from "@/lib/supabase";
 
+export const maxDuration = 120;
+
 // History entry: one completed chapter + what the student chose
 interface HistoryEntry {
   chapter: object;       // full chapter JSON shown to the student
@@ -85,9 +87,9 @@ function buildScenarioConfig(t: {
 }
 
 /**
- * Search Wikipedia using the chapter's English title + content keywords.
+ * 兜底：从维基百科搜索配图
  */
-async function fetchImageByQuery(titleEn: string | undefined, keywords: string[] | undefined): Promise<string | null> {
+async function fetchImageByWikipedia(titleEn: string | undefined, keywords: string[] | undefined): Promise<string | null> {
   const kws = (keywords && Array.isArray(keywords)) ? keywords : [];
   const t = (titleEn || "").trim();
   const attempts: string[] = [];
@@ -130,6 +132,94 @@ async function fetchImageByQuery(titleEn: string | undefined, keywords: string[]
     return null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * 使用阿里云 DashScope wanx 模型 AI 生成场景配图。
+ * 若未配置 DASHSCOPE_API_KEY 或生成失败，自动回退到维基百科搜图。
+ */
+async function generateScenarioImage(
+  titleEn: string | undefined,
+  keywords: string[] | undefined,
+): Promise<string | null> {
+  const apiKey = process.env.DASHSCOPE_API_KEY;
+  if (!apiKey) {
+    return fetchImageByWikipedia(titleEn, keywords);
+  }
+
+  try {
+    const kws = (keywords && Array.isArray(keywords)) ? keywords.filter(Boolean) : [];
+    const titlePart = (titleEn ?? "").trim();
+    const kwPart = kws.slice(0, 5).join(", ");
+    const prompt = [
+      titlePart,
+      kwPart,
+      "historical scene, cinematic composition, dramatic lighting, detailed illustration, wide angle, epic atmosphere",
+    ].filter(Boolean).join(", ");
+
+    // 提交生成任务
+    const submitRes = await fetch(
+      "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "X-DashScope-Async": "enable",
+        },
+        body: JSON.stringify({
+          model: "wanx2.1-t2i-turbo",
+          input: {
+            prompt,
+            negative_prompt: "text, watermark, logo, signature, ugly, blurry, low quality, modern",
+          },
+          parameters: {
+            size: "1024*576",
+            n: 1,
+          },
+        }),
+      }
+    );
+
+    if (!submitRes.ok) {
+      console.warn("AI 图片生成任务提交失败:", submitRes.status);
+      return fetchImageByWikipedia(titleEn, keywords);
+    }
+
+    const submitData = await submitRes.json();
+    const taskId = submitData?.output?.task_id;
+    if (!taskId) {
+      console.warn("AI 图片生成：未获取到 task_id");
+      return fetchImageByWikipedia(titleEn, keywords);
+    }
+
+    // 轮询任务结果，最多等待 60 秒
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const pollRes = await fetch(
+        `https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`,
+        { headers: { "Authorization": `Bearer ${apiKey}` } }
+      );
+      if (!pollRes.ok) continue;
+      const pollData = await pollRes.json();
+      const status = pollData?.output?.task_status;
+      if (status === "SUCCEEDED") {
+        const url: string | undefined = pollData?.output?.results?.[0]?.url;
+        if (url) return url;
+        break;
+      }
+      if (status === "FAILED") {
+        console.warn("AI 图片生成任务失败:", JSON.stringify(pollData?.output));
+        break;
+      }
+    }
+
+    // 超时或失败 → 回退
+    return fetchImageByWikipedia(titleEn, keywords);
+  } catch (err) {
+    console.warn("AI 图片生成异常，回退到维基百科:", err);
+    return fetchImageByWikipedia(titleEn, keywords);
   }
 }
 
@@ -185,7 +275,7 @@ export async function POST(req: NextRequest) {
       const text = await deepseekChat(messages, { max_tokens: 1200 });
       const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const chapter = JSON.parse(cleaned);
-      const imageUrl = await fetchImageByQuery(chapter.title_en, chapter.image_keywords);
+      const imageUrl = await generateScenarioImage(chapter.title_en, chapter.image_keywords);
 
       // Save chapter 1 as pending, store imageUrl for resume
       await supabase
@@ -211,7 +301,7 @@ export async function POST(req: NextRequest) {
       // Use stored image URL or re-fetch
       let imageUrl: string | null = pendingChapter?._image_url ?? null;
       if (!imageUrl && pendingChapter?.title_en) {
-        imageUrl = await fetchImageByQuery(pendingChapter.title_en, pendingChapter.image_keywords);
+        imageUrl = await generateScenarioImage(pendingChapter.title_en, pendingChapter.image_keywords);
       }
 
       return NextResponse.json({
@@ -282,7 +372,7 @@ export async function POST(req: NextRequest) {
       const text = await deepseekChat(messages, { max_tokens: 1200 });
       const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const chapter = JSON.parse(cleaned);
-      const imageUrl = await fetchImageByQuery(chapter.title_en, chapter.image_keywords);
+      const imageUrl = await generateScenarioImage(chapter.title_en, chapter.image_keywords);
 
       await supabase.from("scenario_sessions").update({
         choices_json: { history: newHistory, pending_chapter: { ...chapter, _image_url: imageUrl } } as any,
