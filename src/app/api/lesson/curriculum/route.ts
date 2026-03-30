@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     if (!chapterId) return NextResponse.json([]);
     const { data, error } = await db
       .from("lesson_knowledge_points")
-      .select("id, name")
+      .select("id, name, reference_text")
       .eq("chapter_id", chapterId)
       .order("sort_order");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -408,10 +408,11 @@ on conflict (textbook_id, name) do nothing;
 
 -- 25. lesson_knowledge_points (知识点)
 create table if not exists lesson_knowledge_points (
-  id          serial primary key,
-  chapter_id  int  not null references lesson_chapters(id) on delete cascade,
-  name        text not null,
-  sort_order  int  not null default 0,
+  id             serial primary key,
+  chapter_id     int  not null references lesson_chapters(id) on delete cascade,
+  name           text not null,
+  sort_order     int  not null default 0,
+  reference_text text,
   unique(chapter_id, name)
 );
 

@@ -10,6 +10,7 @@ import {
 } from "@/lib/lessonHistory";
 
 interface Option { id: number; name: string }
+interface PointOption { id: number; name: string; reference_text: string | null }
 
 // 已完整录入课程体系的学科
 const DEVELOPED_SUBJECTS = new Set(["高中化学", "高中生物学"]);
@@ -33,7 +34,7 @@ export default function SearchForm() {
   const [subjects, setSubjects] = useState<Option[]>([]);
   const [textbooks, setTextbooks] = useState<Option[]>([]);
   const [chapters, setChapters] = useState<Option[]>([]);
-  const [points, setPoints] = useState<Option[]>([]);
+  const [points, setPoints] = useState<PointOption[]>([]);
 
   const [subjectId, setSubjectId] = useState<string>("");
   const [textbookId, setTextbookId] = useState<string>("");
@@ -110,6 +111,10 @@ export default function SearchForm() {
     const found = points.find((p) => String(p.id) === id);
     setPointId(id);
     setPointName(found?.name ?? "");
+    // 如果该知识点有教师预设的参考资料，自动填入补充材料框
+    if (found?.reference_text) {
+      setSourceText(found.reference_text);
+    }
   };
 
   const canSubmit = Boolean(pointName.trim() || sourceText.trim());
@@ -215,7 +220,17 @@ export default function SearchForm() {
 
         {/* 补充材料 */}
         <div>
-          <label className="block text-xs text-gray-400 mb-1">补充材料（可选）</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs text-gray-400">补充材料（可选）</label>
+            {sourceText.trim() && pointId && points.find((p) => String(p.id) === pointId)?.reference_text && (
+              <span className="text-xs text-emerald-400 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                已加载教师预设资料
+              </span>
+            )}
+          </div>
           <textarea
             value={sourceText}
             onChange={(e) => setSourceText(e.target.value)}
