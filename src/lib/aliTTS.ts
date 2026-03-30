@@ -23,12 +23,12 @@ export async function synthesizeSpeech(text: string): Promise<TTSResult> {
         "X-DashScope-Async": "enable",
       },
       body: JSON.stringify({
-        model: "cosyvoice-v1",
+        model: "cosyvoice-v2",
         input: { text },
         parameters: {
           voice: "longxiaoxia",
           format: "mp3",
-          sample_rate: 22050,
+          sample_rate: 24000,
           volume: 70,
           rate: 1.0,
           pitch: 1.0,
