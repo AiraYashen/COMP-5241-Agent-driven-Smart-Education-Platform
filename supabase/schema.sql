@@ -416,6 +416,9 @@ create table if not exists lesson_knowledge_points (
   unique(chapter_id, name)
 );
 
+-- 为已存在的表补充 reference_text 列（幂等，可重复执行）
+alter table lesson_knowledge_points add column if not exists reference_text text;
+
 insert into lesson_knowledge_points (chapter_id, name, sort_order)
 select ch.id, k.name, k.sort_order
 from lesson_chapters  ch
