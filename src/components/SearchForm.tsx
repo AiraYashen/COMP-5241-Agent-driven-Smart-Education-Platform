@@ -73,6 +73,7 @@ export default function SearchForm() {
     setTextbooks([]); setTextbookId(""); setTextbookName("");
     setChapters([]);  setChapterId("");  setChapterName("");
     setPoints([]);    setPointId("");    setPointName("");
+    setSourceText("");
     if (!id) return;
     fetch(`/api/lesson/curriculum?level=textbooks&subjectId=${id}`)
       .then((r) => r.json())
@@ -87,6 +88,7 @@ export default function SearchForm() {
     setTextbookName(found?.name ?? "");
     setChapters([]); setChapterId(""); setChapterName("");
     setPoints([]);   setPointId("");   setPointName("");
+    setSourceText("");
     if (!id) return;
     fetch(`/api/lesson/curriculum?level=chapters&textbookId=${id}`)
       .then((r) => r.json())
@@ -100,6 +102,7 @@ export default function SearchForm() {
     setChapterId(id);
     setChapterName(found?.name ?? "");
     setPoints([]);  setPointId("");  setPointName("");
+    setSourceText("");
     if (!id) return;
     fetch(`/api/lesson/curriculum?level=points&chapterId=${id}`)
       .then((r) => r.json())
@@ -111,10 +114,8 @@ export default function SearchForm() {
     const found = points.find((p) => String(p.id) === id);
     setPointId(id);
     setPointName(found?.name ?? "");
-    // 如果该知识点有教师预设的参考资料，自动填入补充材料框
-    if (found?.reference_text) {
-      setSourceText(found.reference_text);
-    }
+    // 切换知识点时始终重置，再按参考资料决定是否填入
+    setSourceText(found?.reference_text ?? "");
   };
 
   const canSubmit = Boolean(pointName.trim() || sourceText.trim());
