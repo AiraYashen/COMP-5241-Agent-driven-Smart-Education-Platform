@@ -1,9 +1,7 @@
 "use client";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 import Sidebar, { NavItem } from "@/components/ui/Sidebar";
 import Header from "@/components/ui/Header";
-import { supabase } from "@/lib/supabase";
 
 const navItems: NavItem[] = [
   {
@@ -60,21 +58,7 @@ interface AdminShellProps {
 
 export default function AdminShell({ children, session }: AdminShellProps) {
   const t = useTranslations();
-  const userId = (session?.user as any)?.id;
-  const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    if (!userId) return;
-    const fetchUnread = async () => {
-      const { count } = await supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("is_read", false);
-      setUnreadCount(count ?? 0);
-    };
-    fetchUnread();
-  }, [userId]);
   const navKeys: Record<string, string> = {
     "/admin/dashboard": t("nav.dashboard"),
     "/admin/schools": t("nav.schools"),
@@ -94,8 +78,6 @@ export default function AdminShell({ children, session }: AdminShellProps) {
         <Header
           title={t("admin.title")}
           userName={session?.user?.name ?? "Admin"}
-          notificationCount={unreadCount}
-          notificationHref="/admin/notifications"
         />
         <main className="flex-1 overflow-y-auto p-6">
           {children}
