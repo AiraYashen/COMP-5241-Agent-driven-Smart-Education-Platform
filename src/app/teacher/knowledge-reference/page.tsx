@@ -100,7 +100,7 @@ export default function KnowledgeReferencePage() {
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 space-y-6">
       <div>
-        <h1 className="text-white text-2xl font-bold">口袋课堂参考资料管理</h1>
+        <h1 className="text-gray-400 text-2xl font-bold">口袋课堂参考资料管理</h1>
         <p className="text-gray-400 text-sm mt-1">
           逐级选定知识点，输入 AI 生成课程时的参考教材内容。学生端选中该知识点后将自动使用此资料。
         </p>
