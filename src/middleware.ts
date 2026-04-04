@@ -15,8 +15,8 @@ export default auth((req: NextRequest & { auth: any }) => {
   if (pathname === "/") {
     if (!session) return NextResponse.redirect(new URL("/login", req.url));
     if (role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", req.url));
-    if (role === "TEACHER") return NextResponse.redirect(new URL("/teacher/dashboard", req.url));
-    return NextResponse.redirect(new URL("/student/dashboard", req.url));
+    if (role === "TEACHER") return NextResponse.redirect(new URL("/teacher/schedule", req.url));
+    return NextResponse.redirect(new URL("/student/schedule", req.url));
   }
 
   // Require auth
