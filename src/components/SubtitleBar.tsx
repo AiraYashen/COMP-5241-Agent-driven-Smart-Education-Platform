@@ -48,10 +48,52 @@ export default function SubtitleBar({
 }: SubtitleBarProps) {
   const [expanded, setExpanded] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(true);
+  const [chatAnswerHeight, setChatAnswerHeight] = useState(192); // 默认 max-h-48 = 192px
+  const [isDragging, setIsDragging] = useState(false);
 
   // 新段落开始时自动折叠
   useEffect(() => { setExpanded(false); }, [text]);
   useEffect(() => { if (chatAnswer) setChatExpanded(true); }, [chatAnswer]);
+
+  // 从 localStorage 恢复高度偏好
+  useEffect(() => {
+    const saved = localStorage.getItem("chat_answer_height");
+    if (saved) {
+      const height = Math.max(100, Math.min(400, parseInt(saved, 10))); // 限制在 100-400px
+      setChatAnswerHeight(height);
+    }
+  }, []);
+
+  // 处理拖动调整高度
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const delta = e.movementY;
+      setChatAnswerHeight((prev) => {
+        const newHeight = Math.max(100, Math.min(400, prev - delta));
+        localStorage.setItem("chat_answer_height", String(newHeight));
+        return newHeight;
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isDragging]);
 
   if (!isVisible && !isDone) return null;
 
@@ -89,9 +131,9 @@ export default function SubtitleBar({
 
         {/* ── AI 追问回答 ─────────────────────────────────── */}
         {chatAnswer && (
-          <div className="flex gap-2 items-start animate-fade-in">
+          <div className="flex gap-2 items-start animate-fade-in group">
             <div className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] text-white font-bold">师</div>
-            <div className="flex-1 bg-indigo-950/60 border border-indigo-700/30 rounded-2xl rounded-tl-sm px-3 py-2 text-sm text-indigo-100 leading-relaxed flex flex-col max-h-48">
+            <div className="flex-1 bg-indigo-950/60 border border-indigo-700/30 rounded-2xl rounded-tl-sm px-3 py-2 text-sm text-indigo-100 leading-relaxed flex flex-col" style={{ maxHeight: `${chatAnswerHeight}px` }}>
               <div className="flex items-center justify-between gap-2 mb-1 flex-shrink-0">
                 <button
                   type="button"
@@ -137,6 +179,12 @@ export default function SubtitleBar({
                 </div>
               )}
             </div>
+            {/* 高度调整手柄 */}
+            <div
+              onMouseDown={handleMouseDown}
+              className={`flex-shrink-0 w-1 bg-indigo-700/30 rounded-full hover:bg-indigo-600/50 transition-all cursor-ns-resize ${isDragging ? "bg-indigo-500" : ""}`}
+              title="拖动调整回答框高度"
+            />
           </div>
         )}
 
