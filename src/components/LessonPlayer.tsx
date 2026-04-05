@@ -689,11 +689,11 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
 
       {/* Nav */}
       <nav className="sticky top-0 z-20 bg-gray-950/80 backdrop-blur border-b border-white/5 px-6 py-3.5 flex items-center justify-between flex-shrink-0">
-        <a href="/" className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 text-sm">
+        <a href="/lesson" className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 text-sm">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          返回
+          退出口袋课堂
         </a>
         <div className="text-gray-400 text-sm truncate max-w-sm font-medium">{question}</div>
         <div className="flex items-center gap-3 text-xs">
