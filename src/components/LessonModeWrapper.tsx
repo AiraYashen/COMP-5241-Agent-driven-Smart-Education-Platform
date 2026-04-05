@@ -177,8 +177,32 @@ export default function LessonModeWrapper({ question, sid }: Props) {
             <div className="space-y-6">
               {textContent.split("\n---\n").map((section, i) => {
                 const lines = section.trim().split("\n\n");
-                const heading = lines[0]?.replace(/^\*\*|\*\*$/g, "") ?? "";
-                const body = lines.slice(1).join("\n\n");
+                const titleLine = lines[0]?.replace(/^\*\*|\*\*$/g, "") ?? "";
+                
+                // First section uses the main title, others generate heading from content
+                let heading = "";
+                let body = "";
+                
+                if (i === 0 && titleLine) {
+                  // First section: use the title line as heading
+                  heading = titleLine;
+                  body = lines.slice(1).join("\n\n");
+                } else {
+                  // Subsequent sections: use the title line as heading only if it looks substantial
+                  // Otherwise, extract first sentence as heading to avoid repetition
+                  if (titleLine && titleLine.length > 3 && !titleLine.includes("好，我们来复盘")) {
+                    heading = titleLine;
+                    body = lines.slice(1).join("\n\n");
+                  } else {
+                    // Extract meaningful heading from content
+                    const fullText = lines.join("\n\n");
+                    const sentences = fullText.split(/[。！？]/);
+                    const firstSentence = sentences[0]?.trim().slice(0, 30) || `段落 ${i + 1}`;
+                    heading = firstSentence.length > 1 ? firstSentence : `段落 ${i + 1}`;
+                    body = fullText;
+                  }
+                }
+                
                 return (
                   <div key={i} className="bg-gray-800 rounded-2xl p-6 space-y-3">
                     {heading && <h3 className="text-lg font-semibold text-white">{heading}</h3>}
