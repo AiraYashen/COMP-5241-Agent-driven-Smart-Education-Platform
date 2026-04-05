@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
   useEffect(() => {
     supabase.from("schools").select("id, name").then(({ data }) => {
@@ -230,7 +231,102 @@ export default function LoginPage() {
         <p className="text-center text-xs mt-4" style={{ color: "var(--muted)" }}>
           EduPlatform © 2026 · 教育4.0智慧平台
         </p>
+
+        {/* Demo accounts button */}
+        <button
+          onClick={() => setShowDemoModal(true)}
+          className="w-full mt-3 px-3 py-2 rounded-lg text-xs transition-all"
+          style={{ background: "var(--card)", borderColor: "var(--card-border)", color: "var(--accent)", border: "1px solid" }}
+        >
+          查看测试账号
+        </button>
       </div>
+
+      {/* Demo accounts modal */}
+      {showDemoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div
+            className="rounded-2xl border p-6 shadow-2xl max-w-md w-full"
+            style={{ background: "var(--card)", borderColor: "var(--card-border)" }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
+                测试账号信息
+              </h2>
+              <button
+                onClick={() => setShowDemoModal(false)}
+                className="text-gray-400 hover:text-gray-200 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="text-sm mb-4" style={{ color: "var(--muted)" }}>
+              以下账号可用于试用应用，验证码为任意6位数字（如 123456）
+            </p>
+
+            <div className="space-y-3">
+              {/* Admin */}
+              <div className="rounded-lg p-3" style={{ background: "var(--background)" }}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                    管理员
+                  </span>
+                  <span className="text-xs px-2 py-1 rounded" style={{ background: "var(--accent)", color: "#fff" }}>
+                    Admin
+                  </span>
+                </div>
+                <div className="text-sm" style={{ color: "var(--muted)" }}>
+                  <div>手机号：<span style={{ color: "var(--accent)" }}>10000000000</span></div>
+                  <div className="mt-1">验证码：任意6位数字</div>
+                </div>
+              </div>
+
+              {/* Teacher */}
+              <div className="rounded-lg p-3" style={{ background: "var(--background)" }}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                    教师
+                  </span>
+                  <span className="text-xs px-2 py-1 rounded" style={{ background: "var(--accent)", color: "#fff" }}>
+                    Teacher
+                  </span>
+                </div>
+                <div className="text-sm" style={{ color: "var(--muted)" }}>
+                  <div>手机号：<span style={{ color: "var(--accent)" }}>13800000001</span></div>
+                  <div className="mt-1">验证码：任意6位数字</div>
+                </div>
+              </div>
+
+              {/* Student */}
+              <div className="rounded-lg p-3" style={{ background: "var(--background)" }}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                    学生
+                  </span>
+                  <span className="text-xs px-2 py-1 rounded" style={{ background: "var(--accent)", color: "#fff" }}>
+                    Student
+                  </span>
+                </div>
+                <div className="text-sm" style={{ color: "var(--muted)" }}>
+                  <div>手机号：<span style={{ color: "var(--accent)" }}>13800000002</span></div>
+                  <div className="mt-1">验证码：任意6位数字</div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowDemoModal(false)}
+              className="w-full mt-4 py-2.5 rounded-lg text-sm font-medium transition-all"
+              style={{ background: "var(--accent)", color: "#fff" }}
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
