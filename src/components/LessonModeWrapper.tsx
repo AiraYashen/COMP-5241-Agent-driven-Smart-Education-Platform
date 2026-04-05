@@ -179,28 +179,24 @@ export default function LessonModeWrapper({ question, sid }: Props) {
                 const lines = section.trim().split("\n\n");
                 const titleLine = lines[0]?.replace(/^\*\*|\*\*$/g, "") ?? "";
                 
-                // First section uses the main title, others generate heading from content
                 let heading = "";
                 let body = "";
                 
-                if (i === 0 && titleLine) {
-                  // First section: use the title line as heading
+                if (i === 0) {
+                  // First section: use the main title, content is lines[1:]
                   heading = titleLine;
                   body = lines.slice(1).join("\n\n");
                 } else {
-                  // Subsequent sections: use the title line as heading only if it looks substantial
-                  // Otherwise, extract first sentence as heading to avoid repetition
-                  if (titleLine && titleLine.length > 3 && !titleLine.includes("好，我们来复盘")) {
-                    heading = titleLine;
-                    body = lines.slice(1).join("\n\n");
-                  } else {
-                    // Extract meaningful heading from content
-                    const fullText = lines.join("\n\n");
-                    const sentences = fullText.split(/[。！？]/);
-                    const firstSentence = sentences[0]?.trim().slice(0, 30) || `段落 ${i + 1}`;
-                    heading = firstSentence.length > 1 ? firstSentence : `段落 ${i + 1}`;
-                    body = fullText;
-                  }
+                  // Subsequent sections: skip the repeated title line, generate heading from actual content
+                  // The first line is the repeated title, skip it
+                  const contentLines = lines.slice(1); // Skip the repeated title
+                  const fullContent = contentLines.join("\n\n");
+                  
+                  // Extract meaningful heading from content: first sentence (up to 30 chars)
+                  const sentences = fullContent.split(/[。！？]/);
+                  const firstSentence = sentences[0]?.trim().slice(0, 35) || `段落 ${i + 1}`;
+                  heading = firstSentence.length > 2 ? firstSentence : `段落 ${i + 1}`;
+                  body = fullContent;
                 }
                 
                 return (
