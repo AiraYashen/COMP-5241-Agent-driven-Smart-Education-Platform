@@ -307,25 +307,29 @@ export default function ScenarioSimPage() {
                   <textarea
                     autoFocus
                     value={customInput}
-                    onChange={(e) => setCustomInput(e.target.value)}
+                    onChange={(e) => setCustomInput(e.target.value.slice(0, 50))}
                     placeholder="请输入你的想法…"
                     rows={3}
+                    maxLength={50}
                     className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
                   />
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={() => { setShowCustomInput(false); setCustomInput(""); }}
-                      className="px-3 py-1 text-xs text-slate-400 hover:text-white transition"
-                    >
-                      取消
-                    </button>
-                    <button
-                      disabled={!customInput.trim() || choosing}
-                      onClick={() => makeChoice("D", customInput.trim())}
-                      className="px-4 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-40 transition"
-                    >
-                      提交
-                    </button>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400">{customInput.length}/50</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setShowCustomInput(false); setCustomInput(""); }}
+                        className="px-3 py-1 text-xs text-slate-400 hover:text-white transition"
+                      >
+                        取消
+                      </button>
+                      <button
+                        disabled={!customInput.trim() || choosing}
+                        onClick={() => makeChoice("D", customInput.trim())}
+                        className="px-4 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-40 transition"
+                      >
+                        提交
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
