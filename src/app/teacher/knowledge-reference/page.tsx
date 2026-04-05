@@ -5,6 +5,9 @@ import { useEffect, useState } from "react";
 interface Option { id: number; name: string }
 interface PointOption { id: number; name: string; reference_text: string | null }
 
+// 已完整录入课程体系的学科
+const DEVELOPED_SUBJECTS = new Set(["高中化学", "高中生物学"]);
+
 const selectCls =
   "w-full bg-slate-950/60 text-white px-3 py-2 rounded-lg border border-white/10 outline-none focus:border-indigo-400/50 disabled:opacity-40 disabled:cursor-not-allowed";
 
@@ -15,6 +18,7 @@ export default function KnowledgeReferencePage() {
   const [points, setPoints]       = useState<PointOption[]>([]);
 
   const [subjectId, setSubjectId]   = useState("");
+  const [subjectName, setSubjectName] = useState("");
   const [textbookId, setTextbookId] = useState("");
   const [chapterId, setChapterId]   = useState("");
   const [pointId, setPointId]       = useState("");
@@ -23,6 +27,19 @@ export default function KnowledgeReferencePage() {
   const [referenceText, setReferenceText] = useState("");
   const [isSaving, setIsSaving]           = useState(false);
   const [saveMsg, setSaveMsg]             = useState<{ ok: boolean; text: string } | null>(null);
+
+  // 缓存：记录教材/章节是否有下级内容
+  const [textbookHasChapters, setTextbookHasChapters] = useState<Map<number, boolean>>(new Map());
+  const [chapterHasPoints, setChapterHasPoints] = useState<Map<number, boolean>>(new Map());
+
+  // 当前选中学科是否已开发
+  const isDeveloped = DEVELOPED_SUBJECTS.has(subjectName);
+
+  // 当前选中教材是否有下级章节
+  const textbookIsDeveloped = textbookId ? textbookHasChapters.get(Number(textbookId)) ?? true : true;
+
+  // 当前选中章节是否有下级知识点
+  const chapterIsDeveloped = chapterId ? chapterHasPoints.get(Number(chapterId)) ?? true : true;
 
   // 加载学科
   useEffect(() => {
@@ -33,22 +50,63 @@ export default function KnowledgeReferencePage() {
   }, []);
 
   const handleSubjectChange = (id: string) => {
+    const found = subjects.find((s) => String(s.id) === id);
     setSubjectId(id);
+    setSubjectName(found?.name ?? "");
     setTextbooks([]); setTextbookId("");
     setChapters([]);  setChapterId("");
     setPoints([]);    setPointId(""); setPointName(""); setReferenceText(""); setSaveMsg(null);
+    setTextbookHasChapters(new Map());
+    setChapterHasPoints(new Map());
     if (!id) return;
     fetch(`/api/lesson/curriculum?level=textbooks&subjectId=${id}`)
-      .then((r) => r.json()).then(setTextbooks).catch(() => {});
+      .then((r) => r.json())
+      .then((tbs) => {
+        setTextbooks(tbs);
+        // 预加载所有教材的下级章节，检查是否有内容
+        const hasChaptersMap = new Map<number, boolean>();
+        tbs.forEach((tb: Option) => {
+          fetch(`/api/lesson/curriculum?level=chapters&textbookId=${tb.id}`)
+            .then((r) => r.json())
+            .then((chps) => {
+              hasChaptersMap.set(tb.id, chps.length > 0);
+              setTextbookHasChapters(new Map(hasChaptersMap));
+            })
+            .catch(() => {
+              hasChaptersMap.set(tb.id, false);
+              setTextbookHasChapters(new Map(hasChaptersMap));
+            });
+        });
+      })
+      .catch(() => {});
   };
 
   const handleTextbookChange = (id: string) => {
     setTextbookId(id);
     setChapters([]); setChapterId("");
     setPoints([]);   setPointId(""); setPointName(""); setReferenceText(""); setSaveMsg(null);
+    setChapterHasPoints(new Map());
     if (!id) return;
     fetch(`/api/lesson/curriculum?level=chapters&textbookId=${id}`)
-      .then((r) => r.json()).then(setChapters).catch(() => {});
+      .then((r) => r.json())
+      .then((chps) => {
+        setChapters(chps);
+        // 预加载所有章节的下级知识点，检查是否有内容
+        const hasPointsMap = new Map<number, boolean>();
+        chps.forEach((ch: Option) => {
+          fetch(`/api/lesson/curriculum?level=points&chapterId=${ch.id}`)
+            .then((r) => r.json())
+            .then((pts) => {
+              hasPointsMap.set(ch.id, pts.length > 0);
+              setChapterHasPoints(new Map(hasPointsMap));
+            })
+            .catch(() => {
+              hasPointsMap.set(ch.id, false);
+              setChapterHasPoints(new Map(hasPointsMap));
+            });
+        });
+      })
+      .catch(() => {});
   };
 
   const handleChapterChange = (id: string) => {
@@ -113,40 +171,85 @@ export default function KnowledgeReferencePage() {
           <label className="block text-xs text-gray-400 mb-1">学科</label>
           <select value={subjectId} onChange={(e) => handleSubjectChange(e.target.value)} className={selectCls}>
             <option value="" style={{ color: "#9ca3af" }}>请选择学科</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={String(s.id)} style={{ color: "#111827" }}>{s.name}</option>
-            ))}
+            {subjects.map((s) => {
+              const isDev = DEVELOPED_SUBJECTS.has(s.name);
+              return (
+                <option key={s.id} value={String(s.id)} style={{ color: "#111827" }}>
+                  {s.name}{!isDev ? "（待开放）" : ""}
+                </option>
+              );
+            })}
           </select>
         </div>
 
-        {/* 教材 */}
-        {textbooks.length > 0 && (
+        {/* 待建设提示 */}
+        {subjectId && !isDeveloped && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-400/20 text-amber-300 text-sm">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
+            </svg>
+            该学科课程体系正在建设中，敬请期待
+          </div>
+        )}
+
+        {/* 教材（仅已开发学科展示） */}
+        {isDeveloped && (
           <div>
             <label className="block text-xs text-gray-400 mb-1">教材</label>
             <select value={textbookId} onChange={(e) => handleTextbookChange(e.target.value)} className={selectCls}>
               <option value="" style={{ color: "#9ca3af" }}>请选择教材</option>
-              {textbooks.map((t) => (
-                <option key={t.id} value={String(t.id)} style={{ color: "#111827" }}>{t.name}</option>
-              ))}
+              {textbooks.map((t) => {
+                const hasChapters = textbookHasChapters.get(t.id) ?? true; // 默认为true（未检查）
+                return (
+                  <option key={t.id} value={String(t.id)} style={{ color: "#111827" }}>
+                    {t.name}{!hasChapters && textbookHasChapters.has(t.id) ? "（待开放）" : ""}
+                  </option>
+                );
+              })}
             </select>
+          </div>
+        )}
+
+        {/* 教材待建设提示 */}
+        {textbookId && !textbookIsDeveloped && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-400/20 text-amber-300 text-sm">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
+            </svg>
+            该教材课程体系正在建设中，敬请期待
           </div>
         )}
 
         {/* 章节 */}
-        {chapters.length > 0 && (
+        {isDeveloped && chapters.length > 0 && (
           <div>
             <label className="block text-xs text-gray-400 mb-1">章节</label>
             <select value={chapterId} onChange={(e) => handleChapterChange(e.target.value)} className={selectCls}>
               <option value="" style={{ color: "#9ca3af" }}>请选择章节</option>
-              {chapters.map((c) => (
-                <option key={c.id} value={String(c.id)} style={{ color: "#111827" }}>{c.name}</option>
-              ))}
+              {chapters.map((c) => {
+                const hasPoints = chapterHasPoints.get(c.id) ?? true; // 默认为true（未检查）
+                return (
+                  <option key={c.id} value={String(c.id)} style={{ color: "#111827" }}>
+                    {c.name}{!hasPoints && chapterHasPoints.has(c.id) ? "（待开放）" : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
         )}
 
+        {/* 章节待建设提示 */}
+        {chapterId && !chapterIsDeveloped && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-400/20 text-amber-300 text-sm">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
+            </svg>
+            该章节课程体系正在建设中，敬请期待
+          </div>
+        )}
+
         {/* 知识点 */}
-        {points.length > 0 && (
+        {isDeveloped && points.length > 0 && (
           <div>
             <label className="block text-xs text-gray-400 mb-1">知识点</label>
             <select value={pointId} onChange={(e) => handlePointChange(e.target.value)} className={selectCls}>
