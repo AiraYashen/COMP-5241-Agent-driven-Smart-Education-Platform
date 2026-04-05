@@ -91,8 +91,8 @@ export default function SubtitleBar({
         {chatAnswer && (
           <div className="flex gap-2 items-start animate-fade-in">
             <div className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] text-white font-bold">师</div>
-            <div className="flex-1 bg-indigo-950/60 border border-indigo-700/30 rounded-2xl rounded-tl-sm px-3 py-2 text-sm text-indigo-100 leading-relaxed">
-              <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex-1 bg-indigo-950/60 border border-indigo-700/30 rounded-2xl rounded-tl-sm px-3 py-2 text-sm text-indigo-100 leading-relaxed flex flex-col max-h-48">
+              <div className="flex items-center justify-between gap-2 mb-1 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setChatExpanded((v) => !v)}
@@ -128,9 +128,13 @@ export default function SubtitleBar({
                   </button>
                 </div>
               </div>
-              {chatExpanded && <ReactMarkdown components={mdComponents}>{chatAnswer}</ReactMarkdown>}
-              {isChatLoading && chatExpanded && (
-                <span className="inline-block w-0.5 h-3.5 bg-indigo-400 ml-0.5 animate-blink align-middle" />
+              {chatExpanded && (
+                <div className="flex-1 overflow-y-auto pr-2">
+                  <ReactMarkdown components={mdComponents}>{chatAnswer}</ReactMarkdown>
+                  {isChatLoading && (
+                    <span className="inline-block w-0.5 h-3.5 bg-indigo-400 ml-0.5 animate-blink align-middle" />
+                  )}
+                </div>
               )}
             </div>
           </div>
