@@ -164,9 +164,14 @@ export default function SearchForm() {
           <label className="block text-xs text-gray-400 mb-1">学科</label>
           <select value={subjectId} onChange={(e) => handleSubjectChange(e.target.value)} className={selectCls}>
             <option value="" style={{ color: "#9ca3af" }}>请选择学科</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={String(s.id)} style={{ color: "#111827" }}>{s.name}</option>
-            ))}
+            {subjects.map((s) => {
+              const isDev = DEVELOPED_SUBJECTS.has(s.name);
+              return (
+                <option key={s.id} value={String(s.id)} style={{ color: "#111827" }}>
+                  {s.name}{!isDev ? "（待开放）" : ""}
+                </option>
+              );
+            })}
           </select>
         </div>
 
