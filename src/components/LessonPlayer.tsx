@@ -64,8 +64,10 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
 
   // 移动端语音解锁
   const speechUnlockedRef = useRef(false);
-  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  //const voicesRef = useRef<SpeechSynthesisVoice[]>([]);//添加tts 暂时ban
   const watchdogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsAbortRef = useRef<AbortController | null>(null);
   const [needsUserTap, setNeedsUserTap] = useState(false);
 
   // 语音播放进度 0-1（由 onboundary 更新，用于精确同步 VisualPanel）
@@ -129,13 +131,13 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   }, [persistLessonCache]);
 
   // 异步加载可用语音（移动端 getVoices() 在 voiceschanged 前返回空数组）
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const load = () => { voicesRef.current = window.speechSynthesis.getVoices(); };
-    load();
-    window.speechSynthesis.addEventListener("voiceschanged", load);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
-  }, []);
+  // useEffect(() => {
+  //   if (typeof window === "undefined") return;
+  //   const load = () => { voicesRef.current = window.speechSynthesis.getVoices(); };
+  //   load();
+  //   window.speechSynthesis.addEventListener("voiceschanged", load);
+  //   return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
+  // }, []);
 
   // 非 iOS 设备无需手势解锁，直接标记为已解锁
   useEffect(() => {
@@ -147,14 +149,19 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // const pauseSpeechOnLeave = () => {
+    //   try {
+    //     if (window.speechSynthesis.speaking || window.speechSynthesis.paused) {
+    //       window.speechSynthesis.pause();
+    //     }
+    //   } catch {
+    //     // ignore browser speech API errors
+    //   }
+    // };
     const pauseSpeechOnLeave = () => {
       try {
-        if (window.speechSynthesis.speaking || window.speechSynthesis.paused) {
-          window.speechSynthesis.pause();
-        }
-      } catch {
-        // ignore browser speech API errors
-      }
+        audioRef.current?.pause();
+       } catch { /* ignore */ }
     };
 
     window.addEventListener("beforeunload", pauseSpeechOnLeave);
@@ -165,57 +172,127 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
     };
   }, []);
 
-  const getChineseVoice = (): SpeechSynthesisVoice | null => {
-    const voices = voicesRef.current.length > 0 ? voicesRef.current : window.speechSynthesis.getVoices();
-    return (
-      voices.find((v) => v.lang === "zh-CN" && v.name.includes("Yaoyao")) ||
-      voices.find((v) => v.lang === "zh-CN" && v.name.includes("Xiaoyi")) ||
-      voices.find((v) => v.lang === "zh-CN" && v.name.includes("Yunxi")) ||
-      voices.find((v) => v.lang === "zh-CN") ||
-      voices.find((v) => v.lang.startsWith("zh")) ||
-      null
-    );
+  // const getChineseVoice = (): SpeechSynthesisVoice | null => {
+  //   const voices = voicesRef.current.length > 0 ? voicesRef.current : window.speechSynthesis.getVoices();
+  //   return (
+  //     voices.find((v) => v.lang === "zh-CN" && v.name.includes("Yaoyao")) ||
+  //     voices.find((v) => v.lang === "zh-CN" && v.name.includes("Xiaoyi")) ||
+  //     voices.find((v) => v.lang === "zh-CN" && v.name.includes("Yunxi")) ||
+  //     voices.find((v) => v.lang === "zh-CN") ||
+  //     voices.find((v) => v.lang.startsWith("zh")) ||
+  //     null
+  //   );
+  // };
+
+  // const speakText = useCallback((text: string, onEnd: () => void, onBoundary?: (charIdx: number, textLen: number) => void) => {
+  //   // 清除上次 watchdog
+  //   if (watchdogTimerRef.current) {
+  //     clearTimeout(watchdogTimerRef.current);
+  //     watchdogTimerRef.current = null;
+  //   }
+  //   window.speechSynthesis.cancel();
+  //   const utterance = new SpeechSynthesisUtterance(text);
+  //   utterance.lang = "zh-CN";
+  //   utterance.rate = 0.95;
+  //   utterance.pitch = 1.05;
+  //   utterance.volume = 1;
+  //   const voice = getChineseVoice();
+  //   if (voice) utterance.voice = voice;
+  //   if (onBoundary) {
+  //     utterance.onboundary = (e) => onBoundary(e.charIndex, text.length);
+  //   }
+  //   let ended = false;
+  //   const safeOnEnd = () => {
+  //     if (ended) return;
+  //     ended = true;
+  //     if (watchdogTimerRef.current) {
+  //       clearTimeout(watchdogTimerRef.current);
+  //       watchdogTimerRef.current = null;
+  //     }
+  //     onEnd();
+  //   };
+  //   utterance.onend = safeOnEnd;
+  //   utterance.onerror = safeOnEnd;
+  //   window.speechSynthesis.speak(utterance);
+  //   // Watchdog：按中文约 4 字/秒估算，2 倍超时兜底，最少 20 秒
+  //   const estimatedMs = Math.max(20000, (text.length / 4) * 1000 * 2);
+  //   watchdogTimerRef.current = setTimeout(() => {
+  //     if (!ended) {
+  //       window.speechSynthesis.cancel();
+  //       safeOnEnd();
+  //     }
+  //   }, estimatedMs);
+  // }, []);
+  const speakText = useCallback((text: string, onEnd: () => void, onBoundary?: (charIdx: number, textLen: number) => void) => {
+  if (watchdogTimerRef.current) {
+    clearTimeout(watchdogTimerRef.current);
+    watchdogTimerRef.current = null;
+  }
+  // 停止上一段音频
+  if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
+  if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
+
+  const abortCtrl = new AbortController();
+  ttsAbortRef.current = abortCtrl;
+
+  let ended = false;
+  const safeOnEnd = () => {
+    if (ended) return;
+    ended = true;
+    if (watchdogTimerRef.current) { clearTimeout(watchdogTimerRef.current); watchdogTimerRef.current = null; }
+    ttsAbortRef.current = null;
+    onEnd();
   };
 
-  const speakText = useCallback((text: string, onEnd: () => void, onBoundary?: (charIdx: number, textLen: number) => void) => {
-    // 清除上次 watchdog
-    if (watchdogTimerRef.current) {
-      clearTimeout(watchdogTimerRef.current);
-      watchdogTimerRef.current = null;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.95;
-    utterance.pitch = 1.05;
-    utterance.volume = 1;
-    const voice = getChineseVoice();
-    if (voice) utterance.voice = voice;
-    if (onBoundary) {
-      utterance.onboundary = (e) => onBoundary(e.charIndex, text.length);
-    }
-    let ended = false;
-    const safeOnEnd = () => {
-      if (ended) return;
-      ended = true;
-      if (watchdogTimerRef.current) {
-        clearTimeout(watchdogTimerRef.current);
-        watchdogTimerRef.current = null;
+  // Watchdog：TTS 网络耗时 + 播放时间，额外加 15 秒
+  const estimatedMs = Math.max(35000, (text.length / 4) * 1000 * 2 + 15000);
+  watchdogTimerRef.current = setTimeout(() => {
+    if (!ended) { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } safeOnEnd(); }
+  }, estimatedMs);
+
+  fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+    signal: abortCtrl.signal,
+  })
+    .then((res) => res.json())
+    .then((data: { audioUrl?: string }) => {
+      if (abortCtrl.signal.aborted) return;
+      if (!data.audioUrl) throw new Error("No audioUrl");
+
+      const audio = new Audio(data.audioUrl);
+      audioRef.current = audio;
+
+      if (onBoundary) {
+        audio.addEventListener("timeupdate", () => {
+          if (audio.duration > 0) {
+            const charIdx = Math.floor((audio.currentTime / audio.duration) * text.length);
+            onBoundary(charIdx, text.length);
+          }
+        });
       }
-      onEnd();
-    };
-    utterance.onend = safeOnEnd;
-    utterance.onerror = safeOnEnd;
-    window.speechSynthesis.speak(utterance);
-    // Watchdog：按中文约 4 字/秒估算，2 倍超时兜底，最少 20 秒
-    const estimatedMs = Math.max(20000, (text.length / 4) * 1000 * 2);
-    watchdogTimerRef.current = setTimeout(() => {
-      if (!ended) {
-        window.speechSynthesis.cancel();
-        safeOnEnd();
-      }
-    }, estimatedMs);
+      audio.onended = safeOnEnd;
+      audio.onerror = () => safeOnEnd();
+      audio.play().catch(() => safeOnEnd());
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") return;
+      // 降级：使用浏览器内置 TTS
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "zh-CN";
+      utterance.rate = 0.95;
+      utterance.pitch = 1.05;
+      if (onBoundary) utterance.onboundary = (e) => onBoundary(e.charIndex, text.length);
+      utterance.onend = safeOnEnd;
+      utterance.onerror = safeOnEnd;
+      window.speechSynthesis.speak(utterance);
+    });
   }, []);
+
+
+
 
   const playSegment = useCallback((seg: SegmentData) => {
     skipCurrentSegmentRef.current = false;
@@ -277,15 +354,25 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   }, [playSegment]);
 
   // iOS 解锁：播放静音 utterance 以激活 speech API，然后继续队列
+  // const unlockSpeech = useCallback(() => {
+  //   setNeedsUserTap(false);
+  //   if (speechUnlockedRef.current) {
+  //     if (!isSpeakingRef.current && !waitingForUserRef.current) {
+  //       const next = speechQueueRef.current.shift();
+  //       if (next) playSegment(next);
+  //     }
+  //     return;
+  //   }
   const unlockSpeech = useCallback(() => {
-    setNeedsUserTap(false);
-    if (speechUnlockedRef.current) {
-      if (!isSpeakingRef.current && !waitingForUserRef.current) {
-        const next = speechQueueRef.current.shift();
-        if (next) playSegment(next);
-      }
-      return;
+  setNeedsUserTap(false);
+  speechUnlockedRef.current = true;
+  if (!isSpeakingRef.current && !waitingForUserRef.current) {
+    const next = speechQueueRef.current.shift();
+    if (next) playSegment(next);
     }
+  }, [playSegment]);
+
+    
     const silent = new SpeechSynthesisUtterance(" ");
     silent.volume = 0;
     silent.lang = "zh-CN";
@@ -324,14 +411,17 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
     setSpeechProgress(1);
     setSubtitleCharIndex(currentText.length);
     setSegState(currentIndex, "waiting");
-    window.speechSynthesis.cancel();
+    // window.speechSynthesis.cancel();
+    if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
   }, [currentIndex, playSegment, setSegState]);
 
   const handleReplayLesson = useCallback(() => {
     const segments = allSegmentsRef.current;
     if (segments.length === 0) return;
 
-    window.speechSynthesis.cancel();
+    if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
     speechQueueRef.current = [];
     waitingForUserRef.current = false;
     isSpeakingRef.current = false;
@@ -359,7 +449,8 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
 
     setSegState(idx, "simplifying");
     waitingForUserRef.current = false;
-    window.speechSynthesis.cancel();
+    if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
 
     try {
       const seg = allSegmentsRef.current.find((s) => s.index === idx);
@@ -415,7 +506,8 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
       return next;
     });
     if (window.speechSynthesis.speaking || window.speechSynthesis.paused) {
-      window.speechSynthesis.cancel();
+      if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
     }
 
     const context = `课题：${question}，当前讲到：${allSegmentsRef.current.find((s) => s.index === currentIndex)?.text ?? ""}`;
@@ -465,7 +557,8 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   }, [chatAnswer]);
 
   const handleStopChatSpeech = useCallback(() => {
-    window.speechSynthesis.cancel();
+    if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
     setChatSpeechState("idle");
   }, []);
 
