@@ -274,7 +274,17 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
       }
       audio.onended = safeOnEnd;
       audio.onerror = () => safeOnEnd();
-      audio.play().catch(() => safeOnEnd());
+      audio.play().catch(() => {
+        // iOS play() 被拒绝时降级到浏览器内置 TTS
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "zh-CN";
+        utterance.rate = 0.95;
+        if (onBoundary) utterance.onboundary = (e) => onBoundary(e.charIndex, text.length);
+        utterance.onend = safeOnEnd;
+        utterance.onerror = safeOnEnd;
+        window.speechSynthesis.speak(utterance);
+      });
     })
     .catch((err) => {
       if (err.name === "AbortError") return;
@@ -364,28 +374,20 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   //     return;
   //   }
   const unlockSpeech = useCallback(() => {
-  setNeedsUserTap(false);
-  speechUnlockedRef.current = true;
-  if (!isSpeakingRef.current && !waitingForUserRef.current) {
-    const next = speechQueueRef.current.shift();
-    if (next) playSegment(next);
-    }
-  }, [playSegment]);
+    setNeedsUserTap(false);
+    speechUnlockedRef.current = true;
 
-    
-    const silent = new SpeechSynthesisUtterance(" ");
-    silent.volume = 0;
-    silent.lang = "zh-CN";
-    const afterUnlock = () => {
-      speechUnlockedRef.current = true;
-      if (!isSpeakingRef.current && !waitingForUserRef.current) {
-        const next = speechQueueRef.current.shift();
-        if (next) playSegment(next);
-      }
-    };
-    silent.onend = afterUnlock;
-    silent.onerror = afterUnlock;
-    window.speechSynthesis.speak(silent);
+    // iOS 必须在用户手势中直接调用 audio.play() 才能解锁 HTMLAudioElement 播放权
+    // 用一段极短的静音 WAV（Base64）触发解锁
+    const silentAudio = new Audio(
+        "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="
+    );
+    silentAudio.play().catch(() => {}).finally(() => {
+        if (!isSpeakingRef.current && !waitingForUserRef.current) {
+            const next = speechQueueRef.current.shift();
+            if (next) playSegment(next);
+        }
+    });
   }, [playSegment]);
 
   const handleUnderstood = useCallback(() => {
@@ -505,10 +507,8 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
       persistLessonCache({ chatHistory: next });
       return next;
     });
-    if (window.speechSynthesis.speaking || window.speechSynthesis.paused) {
-      if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
-    }
+    if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
 
     const context = `课题：${question}，当前讲到：${allSegmentsRef.current.find((s) => s.index === currentIndex)?.text ?? ""}`;
 
@@ -544,26 +544,25 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   }, [chatInput, isChatLoading, question, currentIndex, speakText, persistChatHistory, persistLessonCache]);
 
   const handleToggleChatSpeech = useCallback(() => {
-    if (!chatAnswer.trim()) return;
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-      setChatSpeechState("speaking");
-      return;
-    }
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.pause();
-      setChatSpeechState("paused");
-    }
+      if (!chatAnswer.trim()) return;
+      if (audioRef.current?.paused) {
+        audioRef.current.play();
+        setChatSpeechState("speaking");
+      } else if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause();
+        setChatSpeechState("paused");
+      }
   }, [chatAnswer]);
 
   const handleStopChatSpeech = useCallback(() => {
-    if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
-    setChatSpeechState("idle");
+      if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
+      setChatSpeechState("idle");
   }, []);
 
   const handleClearChatAnswer = useCallback(() => {
-    window.speechSynthesis.cancel();
+    if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
     setChatSpeechState("idle");
     setChatAnswer("");
     chatAnswerRef.current = "";
@@ -663,7 +662,8 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
   useEffect(() => {
     if (!question && !sid) { setError("请输入问题"); setIsLoading(false); return; }
     if (restoredFromCacheRef.current) return;
-    window.speechSynthesis.cancel();
+    if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }
     const apiUrl = sid
       ? `/api/lesson?sid=${encodeURIComponent(sid)}`
       : `/api/lesson?q=${encodeURIComponent(question)}`;
@@ -756,7 +756,8 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
       }
       setIsLoading(false);
     });
-    return () => { es.close(); window.speechSynthesis.cancel(); };
+    return () => { es.close(); if (ttsAbortRef.current) { ttsAbortRef.current.abort(); ttsAbortRef.current = null; }
+        if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; audioRef.current = null; }; };
   }, [question, sid, enqueueSegment]);
 
   if (error) {
@@ -797,8 +798,15 @@ export default function LessonPlayer({ question, sid }: LessonPlayerProps) {
           {!isLoading && isSpeaking && (
             <button
               onClick={() => {
-                if (window.speechSynthesis.paused) { window.speechSynthesis.resume(); setIsSpeaking(true); }
-                else if (window.speechSynthesis.speaking) { window.speechSynthesis.pause(); setIsSpeaking(false); }
+                  if (audioRef.current) {
+                    if (audioRef.current.paused) {
+                      audioRef.current.play();
+                      setIsSpeaking(true);
+                    } else {
+                      audioRef.current.pause();
+                      setIsSpeaking(false);
+                    }
+                  }
               }}
               className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-gray-400 hover:text-white transition-colors text-xs"
             >

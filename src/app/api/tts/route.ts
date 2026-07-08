@@ -8,6 +8,5 @@ export async function POST(req: NextRequest) {
   const { text } = await req.json() as { text?: string };
   if (!text?.trim()) return NextResponse.json({ error: "No text" }, { status: 400 });
   const { audioUrl } = await synthesizeSpeech(text);
-  const proxied = `/api/audio-proxy?url=${encodeURIComponent(audioUrl)}`;
-  return NextResponse.json({ audioUrl: proxied });
+  return NextResponse.json({ audioUrl });
 }

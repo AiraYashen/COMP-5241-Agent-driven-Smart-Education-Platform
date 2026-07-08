@@ -2,85 +2,37 @@ export interface TTSResult {
   audioUrl: string;
 }
 
-/**
- * 调用阿里云 DashScope CosyVoice TTS 合成语音
- * 文档: https://help.aliyun.com/zh/dashscope/developer-reference/cosyvoice-api
- */
 export async function synthesizeSpeech(text: string): Promise<TTSResult> {
   const apiKey = process.env.DASHSCOPE_API_KEY;
   if (!apiKey) {
     throw new Error("DASHSCOPE_API_KEY 未配置");
   }
 
-  // 请求任务提交
-  const submitRes = await fetch(
-    "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2audiogeneration/generation",
+  // 使用 OpenAI 兼容接口，与 OpenAI TTS API 格式完全一致
+  const res = await fetch(
+    "https://dashscope.aliyuncs.com/compatible-mode/v1/audio/speech",
     {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "X-DashScope-Async": "enable",
       },
       body: JSON.stringify({
         model: "cosyvoice-v2",
-        input: { text },
-        parameters: {
-          voice: "longshuo",
-          format: "mp3",
-          sample_rate: 24000,
-          volume: 70,
-          rate: 1.0,
-          pitch: 1.0,
-        },
+        input: text,
+        voice: "longshuo",
       }),
     }
   );
 
-  if (!submitRes.ok) {
-    const errText = await submitRes.text();
-    throw new Error(`TTS 提交失败: ${submitRes.status} ${errText}`);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`TTS 合成失败: ${res.status} ${errText}`);
   }
 
-  const submitData = await submitRes.json();
-
-  // 如果直接返回了音频URL（同步模式）
-  if (submitData?.output?.audio_url) {
-    return { audioUrl: submitData.output.audio_url };
-  }
-
-  // 异步任务轮询
-  const taskId = submitData?.output?.task_id;
-  if (!taskId) {
-    throw new Error(`TTS 任务提交无效: ${JSON.stringify(submitData)}`);
-  }
-
-  // 轮询任务状态（最多等 30 秒）
-  for (let i = 0; i < 30; i++) {
-    await new Promise((r) => setTimeout(r, 1000));
-
-    const pollRes = await fetch(
-      `https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`,
-      {
-        headers: { "Authorization": `Bearer ${apiKey}` },
-      }
-    );
-
-    if (!pollRes.ok) continue;
-
-    const pollData = await pollRes.json();
-    const status = pollData?.output?.task_status;
-
-    if (status === "SUCCEEDED") {
-      const audioUrl = pollData?.output?.audio_url;
-      if (!audioUrl) throw new Error("TTS 成功但无音频URL");
-      return { audioUrl };
-    }
-
-    if (status === "FAILED") {
-      throw new Error(`TTS 任务失败: ${JSON.stringify(pollData)}`);
-    }
-  }
-
-  throw new Error("TTS 任务超时（30秒）");
+  // 直接返回音频二进制流，转成 base64 data URL
+  const arrayBuffer = await res.arrayBuffer();
+  const base64 = Buffer.from(arrayBuffer).toString("base64");
+  const audioUrl = `data:audio/mpeg;base64,${base64}`;
+  return { audioUrl };
 }
